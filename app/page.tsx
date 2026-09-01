@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Plan } from "@/src/render/Plan";
 import { DEFAULT_PROJECT_ID, loadHome, saveHome } from "@/src/store/persist";
 import { useStore } from "@/src/store/useStore";
+import { CanvasSelectionPanel } from "@/src/ui/CanvasSelectionPanel";
 import { Sidebar } from "@/src/ui/Sidebar";
 import { Toolbar } from "@/src/ui/Toolbar";
 import { validateRoom } from "@/src/validate/rules";
@@ -54,9 +55,12 @@ export default function Home() {
       <div className="row-start-2 min-h-0 no-print">
         <Sidebar issues={issues} />
       </div>
-      <div className="row-start-2 min-h-0 min-w-0 bg-page p-4">
+      <div className="relative row-start-2 min-h-0 min-w-0 bg-page p-4">
         {room ? (
-          <Plan room={room} units={home.units} issueItemIds={issueItemIds} />
+          <>
+            <Plan room={room} units={home.units} issueItemIds={issueItemIds} />
+            <CanvasSelectionPanel />
+          </>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted">
             Add a room to get started.

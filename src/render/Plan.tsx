@@ -92,7 +92,7 @@ export function Plan({ room, units, issueItemIds }: PlanProps) {
   const handleBackgroundClick = useCallback(() => selectItem(null), [selectItem]);
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-0">
+    <div ref={containerRef} className="w-full h-full min-h-0 rounded-xl border border-line overflow-hidden">
       <svg
         ref={svgRef}
         id="plan-svg"
