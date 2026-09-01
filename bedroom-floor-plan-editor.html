@@ -1,0 +1,1456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="A focused bedroom floor-plan editor with real dimensions, layout checks, autosave, and editable SVG export." />
+  <meta name="theme-color" content="#172033" />
+  <title>Bedroom Floor Plan Editor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --navy: #172033;
+      --navy-2: #222d43;
+      --page: #e9edf3;
+      --surface: #ffffff;
+      --surface-2: #f6f8fb;
+      --ink: #19202c;
+      --muted: #667085;
+      --line: #d8dee8;
+      --line-strong: #bbc5d3;
+      --accent: #315bd8;
+      --accent-hover: #2348bb;
+      --accent-soft: #e9efff;
+      --success: #11734b;
+      --success-soft: #e8f7f0;
+      --warning: #a65311;
+      --warning-soft: #fff4e7;
+      --danger: #b42318;
+      --danger-soft: #fff0ef;
+      --shadow: 0 18px 55px rgba(23, 32, 51, .12);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-width: 320px; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--page);
+    }
+
+    button, input, select { font: inherit; }
+    button, summary, select, input[type="checkbox"] { cursor: pointer; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    summary:focus-visible,
+    #plan:focus-visible {
+      outline: 3px solid rgba(49, 91, 216, .28);
+      outline-offset: 2px;
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: flex;
+      min-height: 64px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 18px;
+      color: #fff;
+      background: var(--navy);
+      box-shadow: 0 1px 0 rgba(255,255,255,.08);
+    }
+
+    .brand {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 10px;
+      background: rgba(255,255,255,.08);
+    }
+
+    .brand-mark svg { width: 23px; height: 23px; }
+
+    .brand-copy { min-width: 0; }
+
+    .brand-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 760;
+      letter-spacing: .01em;
+    }
+
+    .project-name {
+      width: min(42vw, 330px);
+      min-width: 150px;
+      padding: 2px 0;
+      color: #bec7d8;
+      border: 0;
+      border-bottom: 1px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .project-name:hover { border-bottom-color: rgba(255,255,255,.24); }
+    .project-name:focus { color: #fff; border-bottom-color: #8facff; outline: 0; }
+
+    .top-actions {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .save-state {
+      max-width: 150px;
+      margin-right: 5px;
+      overflow: hidden;
+      color: #b8c2d5;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      padding: 0;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.17);
+      border-radius: 9px;
+      background: rgba(255,255,255,.07);
+      font-size: 19px;
+    }
+
+    .icon-button:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+    .icon-button:disabled { cursor: not-allowed; opacity: .36; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 350px minmax(0, 1fr);
+      min-height: calc(100vh - 64px);
+    }
+
+    .controls {
+      height: calc(100vh - 64px);
+      overflow: auto;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .summary-card {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-2);
+    }
+
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .room-summary {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 780;
+      letter-spacing: -.02em;
+    }
+
+    .plan-badge {
+      padding: 5px 8px;
+      color: var(--accent);
+      border: 1px solid #c8d5ff;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      font-size: 11px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    details {
+      margin: 0 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    details[open] { box-shadow: 0 5px 16px rgba(23,32,51,.045); }
+
+    summary {
+      position: relative;
+      padding: 14px 38px 14px 14px;
+      font-size: 14px;
+      font-weight: 760;
+      list-style: none;
+      user-select: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      position: absolute;
+      top: 50%;
+      right: 15px;
+      content: "+";
+      color: var(--muted);
+      font-size: 19px;
+      font-weight: 450;
+      transform: translateY(-52%);
+    }
+
+    details[open] summary::after { content: "−"; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 10px;
+      padding: 14px;
+    }
+
+    label.field {
+      display: grid;
+      gap: 6px;
+      color: #475467;
+      font-size: 12px;
+      font-weight: 690;
+    }
+
+    label.wide, .toggle-row, .helper { grid-column: 1 / -1; }
+
+    .input-wrap { position: relative; }
+    .input-wrap input { padding-right: 30px; }
+
+    .unit {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      color: #8a94a6;
+      font-size: 12px;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    input[type="number"], select {
+      width: 100%;
+      min-height: 39px;
+      padding: 8px 10px;
+      color: var(--ink);
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      font-size: 14px;
+    }
+
+    input[type="number"]:hover, select:hover { border-color: #95a2b5; }
+
+    .toggle-row {
+      display: flex;
+      min-height: 28px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .toggle-row input {
+      width: 17px;
+      height: 17px;
+      flex: 0 0 auto;
+      accent-color: var(--accent);
+    }
+
+    .helper {
+      margin: -2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .validation {
+      margin: 14px 0;
+      padding: 13px;
+      border: 1px solid #b9e2cf;
+      border-radius: 12px;
+      background: var(--success-soft);
+    }
+
+    .validation.has-warning { border-color: #ffd7ac; background: var(--warning-soft); }
+    .validation.has-error { border-color: #ffc7c3; background: var(--danger-soft); }
+
+    .validation-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .validation-title { margin: 0; font-size: 13px; font-weight: 790; }
+    .validation-count { color: var(--muted); font-size: 11px; }
+
+    .issue-list {
+      display: grid;
+      gap: 7px;
+      margin: 9px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .issue-list:empty { display: none; }
+    .issue-list li { display: flex; gap: 7px; color: #5b3412; font-size: 12px; line-height: 1.4; }
+    .has-error .issue-list li { color: #7a271a; }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .button {
+      min-height: 41px;
+      padding: 9px 11px;
+      color: #344054;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 730;
+    }
+
+    .button:hover { border-color: #95a2b5; background: var(--surface-2); }
+    .button.primary { grid-column: 1 / -1; color: #fff; border-color: var(--accent); background: var(--accent); }
+    .button.primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+    .button.danger { color: var(--danger); }
+
+    .canvas-area {
+      display: grid;
+      min-width: 0;
+      grid-template-rows: auto minmax(0, 1fr);
+      background:
+        linear-gradient(rgba(93, 109, 136, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(93, 109, 136, .07) 1px, transparent 1px),
+        var(--page);
+      background-size: 24px 24px;
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      min-height: 50px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 8px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246,248,251,.91);
+      backdrop-filter: blur(10px);
+    }
+
+    .selection-label { min-width: 0; color: #475467; font-size: 13px; }
+    .selection-label strong { color: var(--ink); }
+    .canvas-tip { color: var(--muted); font-size: 12px; text-align: right; }
+
+    .canvas-wrap {
+      display: grid;
+      min-height: 0;
+      place-items: center;
+      padding: 22px;
+      overflow: auto;
+    }
+
+    .sheet {
+      width: min(100%, 1000px);
+      padding: 12px;
+      border: 1px solid rgba(23,32,51,.11);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    #plan {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1120 / 1080;
+      border-radius: 9px;
+      background: #fff;
+      touch-action: none;
+    }
+
+    #plan [data-item] { cursor: pointer; }
+    #plan [data-draggable] { cursor: grab; }
+    body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
+
+    .canvas-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 5px 1px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 100;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(360px, calc(100vw - 36px));
+      padding: 11px 14px;
+      color: #fff;
+      border-radius: 10px;
+      background: #202939;
+      box-shadow: 0 12px 32px rgba(16,24,40,.24);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .18s ease, transform .18s ease;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    dialog {
+      width: min(420px, calc(100vw - 32px));
+      padding: 0;
+      color: var(--ink);
+      border: 0;
+      border-radius: 14px;
+      box-shadow: 0 24px 70px rgba(16,24,40,.28);
+    }
+
+    dialog::backdrop { background: rgba(15,23,42,.52); backdrop-filter: blur(2px); }
+    .dialog-body { padding: 22px; }
+    .dialog-body h2 { margin: 0 0 8px; font-size: 19px; }
+    .dialog-body p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 22px; border-top: 1px solid var(--line); background: var(--surface-2); }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 920px) {
+      .workspace { grid-template-columns: 1fr; }
+      .controls { height: auto; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+      .canvas-area { min-height: 720px; }
+    }
+
+    @media (max-width: 620px) {
+      .topbar { align-items: flex-start; padding: 10px 12px; }
+      .brand-mark { display: none; }
+      .project-name { width: 48vw; min-width: 110px; }
+      .save-state { display: none; }
+      .workspace { min-height: calc(100vh - 64px); }
+      .controls { padding: 12px; }
+      .canvas-toolbar { align-items: flex-start; padding: 10px 12px; }
+      .canvas-tip { max-width: 150px; }
+      .canvas-wrap { padding: 10px; }
+      .sheet { padding: 6px; border-radius: 11px; }
+      .canvas-caption { display: grid; gap: 3px; }
+    }
+
+    @media print {
+      .topbar, .controls, .canvas-toolbar, .canvas-caption, .toast, dialog { display: none !important; }
+      .workspace { display: block; min-height: 0; }
+      .canvas-area, .canvas-wrap { display: block; padding: 0; background: #fff; }
+      .sheet { width: 100%; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+      #plan { width: 100%; max-height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 5h16v14H4zM9 5v5h6V5M4 14h5v5M15 14h5" stroke="currentColor" stroke-width="1.7" />
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <p class="brand-title">Bedroom Planner</p>
+        <label class="sr-only" for="projectName">Project name</label>
+        <input id="projectName" class="project-name" maxlength="80" value="Saif’s bedroom layout" />
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="saveState" class="save-state" aria-live="polite">Saved locally</span>
+      <button id="undo" class="icon-button" type="button" title="Undo (Ctrl/⌘ Z)" aria-label="Undo">↶</button>
+      <button id="redo" class="icon-button" type="button" title="Redo (Ctrl/⌘ Shift Z)" aria-label="Redo">↷</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="controls" aria-label="Plan settings">
+      <div class="summary-card">
+        <div>
+          <p class="eyebrow">Current room</p>
+          <p id="roomSummary" class="room-summary">9′ × 11′6″</p>
+        </div>
+        <span class="plan-badge">Focused MVP</span>
+      </div>
+
+      <details open data-section="room">
+        <summary>Room & openings</summary>
+        <div class="fields">
+          <label class="field">Room width
+            <span class="input-wrap"><input id="roomWidth" type="number" min="6" max="20" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Room depth
+            <span class="input-wrap"><input id="roomDepth" type="number" min="8" max="24" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Balcony opening
+            <span class="input-wrap"><input id="balconyLength" type="number" min="2" max="10" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Entry starts at
+            <span class="input-wrap"><input id="entryStart" type="number" min="0" max="16" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Entry width
+            <span class="input-wrap"><input id="entryWidth" type="number" min="1.5" max="4" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Bathroom starts at
+            <span class="input-wrap"><input id="bathStart" type="number" min="0" max="20" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Bathroom opening
+            <span class="input-wrap"><input id="bathWidth" type="number" min="1.5" max="4" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+        </div>
+      </details>
+
+      <details open data-section="top-row">
+        <summary>Wardrobes & desk</summary>
+        <div class="fields">
+          <label class="field">Each wardrobe width
+            <span class="input-wrap"><input id="wardrobeWidth" type="number" min="1.5" max="4" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Study desk width
+            <span class="input-wrap"><input id="deskWidth" type="number" min="3" max="7" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Wardrobe depth
+            <span class="input-wrap"><input id="wardrobeDepth" type="number" min="1.5" max="3" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Desk depth
+            <span class="input-wrap"><input id="deskDepth" type="number" min="1.5" max="3" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="toggle-row"><span>Fit the top row to the wall</span><input id="autoFit" type="checkbox" /></label>
+          <p class="helper">Keeps Wardrobe 1 + desk + Wardrobe 2 equal to the room width.</p>
+        </div>
+      </details>
+
+      <details open data-section="bed">
+        <summary>Bed & bedside table</summary>
+        <div class="fields">
+          <label class="field">Bed width
+            <span class="input-wrap"><input id="bedWidth" type="number" min="2.5" max="7" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Bed length
+            <span class="input-wrap"><input id="bedLength" type="number" min="5" max="8" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">From left wall
+            <span class="input-wrap"><input id="bedLeft" type="number" min="0" max="16" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">From top wall
+            <span class="input-wrap"><input id="bedTop" type="number" min="0" max="20" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Bedside width
+            <span class="input-wrap"><input id="sideWidth" type="number" min="1" max="3" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field">Bedside depth
+            <span class="input-wrap"><input id="sideDepth" type="number" min="1" max="3" step="0.25" /><span class="unit">ft</span></span>
+          </label>
+          <label class="field wide">Bedside position
+            <select id="sidePosition">
+              <option value="left">Left of bed</option>
+              <option value="right">Right of bed</option>
+            </select>
+          </label>
+          <p class="helper">Drag the bed on the plan. The bedside table stays attached and snaps to the selected grid.</p>
+        </div>
+      </details>
+
+      <details data-section="view">
+        <summary>View & snapping</summary>
+        <div class="fields">
+          <label class="field wide">Movement grid
+            <select id="snapSize">
+              <option value="0.0833333333">1 inch</option>
+              <option value="0.25">3 inches</option>
+              <option value="0.5">6 inches</option>
+            </select>
+          </label>
+          <label class="toggle-row"><span>Snap furniture to grid</span><input id="snapEnabled" type="checkbox" /></label>
+          <label class="toggle-row"><span>Show opening clearances</span><input id="showClearance" type="checkbox" /></label>
+          <label class="toggle-row"><span>Show overall dimensions</span><input id="showDimensions" type="checkbox" /></label>
+        </div>
+      </details>
+
+      <section id="validation" class="validation" aria-live="polite">
+        <div class="validation-head">
+          <p id="validationTitle" class="validation-title">Layout fits</p>
+          <span id="validationCount" class="validation-count">No blocking issues</span>
+        </div>
+        <ul id="issueList" class="issue-list"></ul>
+      </section>
+
+      <div class="action-grid" aria-label="Export and project actions">
+        <button id="exportSvg" class="button primary" type="button">Export editable SVG for Figma</button>
+        <button id="copySvg" class="button" type="button">Copy SVG</button>
+        <button id="printPlan" class="button" type="button">Print / PDF</button>
+        <button id="exportJson" class="button" type="button">Export project</button>
+        <button id="importJson" class="button" type="button">Import project</button>
+        <button id="reset" class="button danger" type="button">Reset design</button>
+        <input id="projectFile" class="sr-only" type="file" accept="application/json,.json" />
+      </div>
+    </aside>
+
+    <section class="canvas-area" aria-label="Floor plan workspace">
+      <div class="canvas-toolbar">
+        <div id="selectionLabel" class="selection-label"><strong>Bed selected</strong> · drag to move</div>
+        <div class="canvas-tip">Arrow keys move the selected bed · Shift = 1 inch</div>
+      </div>
+      <div class="canvas-wrap">
+        <div class="sheet">
+          <svg id="plan" role="img" aria-label="Top-view architectural bedroom plan" tabindex="0"></svg>
+          <div class="canvas-caption">
+            <span>Orthographic floor plan · feet and inches</span>
+            <span>Top = South · Bottom = North</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="resetDialog" aria-labelledby="resetTitle">
+    <div class="dialog-body">
+      <h2 id="resetTitle">Reset this bedroom plan?</h2>
+      <p>This restores the agreed 9′ × 11′6″ layout and replaces the locally saved version.</p>
+    </div>
+    <div class="dialog-actions">
+      <button id="cancelReset" class="button" type="button">Cancel</button>
+      <button id="confirmReset" class="button danger" type="button">Reset design</button>
+    </div>
+  </dialog>
+
+  <script>
+    'use strict';
+
+    const STORAGE_KEY = 'bedroom-floor-plan-editor:v2';
+    const SCHEMA_VERSION = 2;
+    const HISTORY_LIMIT = 50;
+
+    // The agreed bedroom arrangement: two 2′6″ wardrobes and a 4′ desk.
+    const DEFAULTS = Object.freeze({
+      projectName: 'Saif’s bedroom layout',
+      roomWidth: 9,
+      roomDepth: 11.5,
+      balconyLength: 5,
+      entryStart: 6.5,
+      entryWidth: 2,
+      bathStart: 3.35,
+      bathWidth: 2.35,
+      wardrobeWidth: 2.5,
+      wardrobeDepth: 2,
+      deskWidth: 4,
+      deskDepth: 2,
+      bedWidth: 4.5,
+      bedLength: 6.5,
+      bedLeft: 1.5,
+      bedTop: 5,
+      sideWidth: 1.5,
+      sideDepth: 1.5,
+      sidePosition: 'left',
+      autoFit: true,
+      snapSize: 0.25,
+      snapEnabled: true,
+      showClearance: true,
+      showDimensions: true
+    });
+
+    const state = { ...DEFAULTS };
+    const history = [];
+    const future = [];
+    let selectedItem = 'bed';
+    let editStart = null;
+    let drag = null;
+    let toastTimer = null;
+    let storageAvailable = true;
+
+    const svg = document.getElementById('plan');
+    const projectName = document.getElementById('projectName');
+    const saveState = document.getElementById('saveState');
+    const undoButton = document.getElementById('undo');
+    const redoButton = document.getElementById('redo');
+    const validation = document.getElementById('validation');
+    const validationTitle = document.getElementById('validationTitle');
+    const validationCount = document.getElementById('validationCount');
+    const issueList = document.getElementById('issueList');
+    const toast = document.getElementById('toast');
+    const numericInputs = [...document.querySelectorAll('input[type="number"]')];
+    const stateControls = [...numericInputs, ...document.querySelectorAll('select, input[type="checkbox"]')];
+
+    const cloneState = value => JSON.parse(JSON.stringify(value));
+    const sameState = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const round = (value, places = 4) => Number(value.toFixed(places));
+    const snap = (value, size = state.snapSize) => round(Math.round(value / size) * size, 6);
+
+    const esc = value => String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+
+    function feetLabel(value) {
+      const safe = Math.max(0, Number(value) || 0);
+      let whole = Math.floor(safe + 1e-7);
+      let inches = Math.round((safe - whole) * 12);
+      if (inches === 12) { whole += 1; inches = 0; }
+      return inches ? `${whole}′${inches}″` : `${whole}′`;
+    }
+
+    function longFeetLabel(value) {
+      const safe = Math.max(0, Number(value) || 0);
+      let whole = Math.floor(safe + 1e-7);
+      let inches = Math.round((safe - whole) * 12);
+      if (inches === 12) { whole += 1; inches = 0; }
+      return `${whole}'-${inches}"`;
+    }
+
+    function normalize(sourceId = '') {
+      numericInputs.forEach(input => {
+        const id = input.id;
+        const value = Number(state[id]);
+        const min = Number(input.min);
+        const max = Number(input.max);
+        state[id] = round(clamp(Number.isFinite(value) ? value : DEFAULTS[id], min, max));
+      });
+
+      state.projectName = String(state.projectName || DEFAULTS.projectName).trim().slice(0, 80) || DEFAULTS.projectName;
+      state.sidePosition = state.sidePosition === 'right' ? 'right' : 'left';
+      state.snapSize = [0.0833333333, 0.25, 0.5].includes(Number(state.snapSize)) ? Number(state.snapSize) : 0.25;
+      ['autoFit', 'snapEnabled', 'showClearance', 'showDimensions'].forEach(key => { state[key] = Boolean(state[key]); });
+
+      state.entryWidth = Math.min(state.entryWidth, state.roomWidth);
+      state.entryStart = clamp(state.entryStart, 0, Math.max(0, state.roomWidth - state.entryWidth));
+      state.balconyLength = Math.min(state.balconyLength, state.roomDepth);
+      state.bathWidth = Math.min(state.bathWidth, state.roomDepth);
+      state.bathStart = clamp(state.bathStart, 0, Math.max(0, state.roomDepth - state.bathWidth));
+
+      if (state.autoFit) {
+        if (sourceId === 'deskWidth') {
+          const fittedWardrobe = (state.roomWidth - state.deskWidth) / 2;
+          state.wardrobeWidth = clamp(fittedWardrobe, 1.5, 4);
+          state.deskWidth = clamp(state.roomWidth - state.wardrobeWidth * 2, 3, 7);
+        } else {
+          const fittedDesk = state.roomWidth - state.wardrobeWidth * 2;
+          if (fittedDesk >= 3 && fittedDesk <= 7) {
+            state.deskWidth = fittedDesk;
+          } else {
+            state.deskWidth = clamp(fittedDesk, 3, 7);
+            state.wardrobeWidth = clamp((state.roomWidth - state.deskWidth) / 2, 1.5, 4);
+            state.deskWidth = clamp(state.roomWidth - state.wardrobeWidth * 2, 3, 7);
+          }
+        }
+        state.deskWidth = round(state.deskWidth);
+        state.wardrobeWidth = round(state.wardrobeWidth);
+      }
+
+      state.bedTop = clamp(state.bedTop, 0, Math.max(0, state.roomDepth - state.bedLength));
+      const minBedLeft = state.sidePosition === 'left' ? state.sideWidth : 0;
+      const maxBedLeft = state.roomWidth - state.bedWidth - (state.sidePosition === 'right' ? state.sideWidth : 0);
+      if (maxBedLeft >= minBedLeft) state.bedLeft = clamp(state.bedLeft, minBedLeft, maxBedLeft);
+      state.bedLeft = round(state.bedLeft);
+      state.bedTop = round(state.bedTop);
+    }
+
+    function pushHistory(previous) {
+      if (!previous || sameState(previous, state)) return;
+      history.push(previous);
+      if (history.length > HISTORY_LIMIT) history.shift();
+      future.length = 0;
+      updateHistoryButtons();
+    }
+
+    function commit(previous, message = '') {
+      pushHistory(previous);
+      saveLocal();
+      if (message) showToast(message);
+    }
+
+    function updateHistoryButtons() {
+      undoButton.disabled = history.length === 0;
+      redoButton.disabled = future.length === 0;
+    }
+
+    function restore(snapshot) {
+      Object.keys(state).forEach(key => delete state[key]);
+      Object.assign(state, DEFAULTS, snapshot);
+      normalize();
+      syncControls();
+      render();
+      saveLocal();
+    }
+
+    function undo() {
+      if (!history.length) return;
+      future.push(cloneState(state));
+      restore(history.pop());
+      updateHistoryButtons();
+      showToast('Change undone');
+    }
+
+    function redo() {
+      if (!future.length) return;
+      history.push(cloneState(state));
+      restore(future.pop());
+      updateHistoryButtons();
+      showToast('Change restored');
+    }
+
+    function saveLocal() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, settings: state }));
+        storageAvailable = true;
+        const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date());
+        saveState.textContent = `Saved locally · ${time}`;
+      } catch (error) {
+        storageAvailable = false;
+        saveState.textContent = 'Autosave unavailable';
+      }
+    }
+
+    function loadLocal() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        const saved = parsed && typeof parsed === 'object' ? (parsed.settings || parsed) : null;
+        if (!saved || typeof saved !== 'object') return false;
+        Object.assign(state, DEFAULTS, pickKnownSettings(saved));
+        return true;
+      } catch (error) {
+        storageAvailable = false;
+        return false;
+      }
+    }
+
+    function pickKnownSettings(candidate) {
+      const clean = {};
+      Object.keys(DEFAULTS).forEach(key => {
+        if (!(key in candidate)) return;
+        const expected = typeof DEFAULTS[key];
+        if (typeof candidate[key] === expected || (expected === 'number' && Number.isFinite(Number(candidate[key])))) {
+          clean[key] = expected === 'number' ? Number(candidate[key]) : candidate[key];
+        }
+      });
+      return clean;
+    }
+
+    function syncControls() {
+      projectName.value = state.projectName;
+      numericInputs.forEach(input => { input.value = round(state[input.id], 4); });
+      document.getElementById('sidePosition').value = state.sidePosition;
+      document.getElementById('snapSize').value = String(state.snapSize);
+      ['autoFit', 'snapEnabled', 'showClearance', 'showDimensions'].forEach(id => {
+        document.getElementById(id).checked = state[id];
+      });
+      document.getElementById('roomSummary').textContent = `${feetLabel(state.roomWidth)} × ${feetLabel(state.roomDepth)}`;
+    }
+
+    function rectsOverlap(a, b) {
+      return a.x < b.x + b.w - .01 && a.x + a.w > b.x + .01 && a.y < b.y + b.h - .01 && a.y + a.h > b.y + .01;
+    }
+
+    function layoutGeometry() {
+      const sideX = state.sidePosition === 'left'
+        ? state.bedLeft - state.sideWidth
+        : state.bedLeft + state.bedWidth;
+      const sideY = state.bedTop + state.bedLength - state.sideDepth;
+      return {
+        wardrobe1: { x: 0, y: 0, w: state.wardrobeWidth, h: state.wardrobeDepth },
+        desk: { x: state.wardrobeWidth, y: 0, w: state.deskWidth, h: state.deskDepth },
+        wardrobe2: { x: state.wardrobeWidth + state.deskWidth, y: 0, w: state.wardrobeWidth, h: state.wardrobeDepth },
+        bed: { x: state.bedLeft, y: state.bedTop, w: state.bedWidth, h: state.bedLength },
+        side: { x: sideX, y: sideY, w: state.sideWidth, h: state.sideDepth },
+        entryZone: { x: state.entryStart, y: Math.max(0, state.roomDepth - 2.5), w: state.entryWidth, h: Math.min(2.5, state.roomDepth) },
+        bathZone: { x: Math.max(0, state.roomWidth - 2.5), y: state.bathStart, w: Math.min(2.5, state.roomWidth), h: state.bathWidth },
+        balconyZone: { x: 0, y: 0, w: Math.min(2.5, state.roomWidth), h: state.balconyLength }
+      };
+    }
+
+    function validateLayout() {
+      const g = layoutGeometry();
+      const issues = [];
+      const topSum = state.wardrobeWidth * 2 + state.deskWidth;
+      const groupLeft = Math.min(g.bed.x, g.side.x);
+      const groupRight = Math.max(g.bed.x + g.bed.w, g.side.x + g.side.w);
+
+      if (topSum > state.roomWidth + .01) issues.push({ type: 'error', text: `The top row is ${feetLabel(topSum - state.roomWidth)} too wide.` });
+      else if (topSum < state.roomWidth - .01) issues.push({ type: 'warning', text: `The top row leaves a ${feetLabel(state.roomWidth - topSum)} gap.` });
+
+      if (groupLeft < -.01 || groupRight > state.roomWidth + .01 || g.bed.y < -.01 || g.bed.y + g.bed.h > state.roomDepth + .01) {
+        issues.push({ type: 'error', text: 'The bed group extends outside the room.' });
+      }
+
+      const topPieces = [g.wardrobe1, g.desk, g.wardrobe2];
+      if (topPieces.some(piece => rectsOverlap(g.bed, piece)) || topPieces.some(piece => rectsOverlap(g.side, piece))) {
+        issues.push({ type: 'error', text: 'The bed group overlaps the wardrobe or desk row.' });
+      }
+
+      if (rectsOverlap(g.bed, g.entryZone) || rectsOverlap(g.side, g.entryZone)) {
+        issues.push({ type: 'error', text: 'Furniture blocks the entry clearance.' });
+      }
+      if (rectsOverlap(g.bed, g.bathZone) || rectsOverlap(g.side, g.bathZone)) {
+        issues.push({ type: 'warning', text: 'Furniture enters the bathroom access zone.' });
+      }
+      if (rectsOverlap(g.bed, g.balconyZone) || rectsOverlap(g.side, g.balconyZone)) {
+        issues.push({ type: 'warning', text: 'Furniture enters the balcony access zone.' });
+      }
+
+      const aisle = state.bedTop - Math.max(state.wardrobeDepth, state.deskDepth);
+      if (aisle >= 0 && aisle < 2) issues.push({ type: 'warning', text: `Only ${feetLabel(aisle)} remains between the bed and the top furniture.` });
+
+      renderValidation(issues);
+      return issues;
+    }
+
+    function renderValidation(issues) {
+      const errors = issues.filter(issue => issue.type === 'error').length;
+      const warnings = issues.filter(issue => issue.type === 'warning').length;
+      validation.classList.toggle('has-error', errors > 0);
+      validation.classList.toggle('has-warning', errors === 0 && warnings > 0);
+
+      if (errors) {
+        validationTitle.textContent = 'Layout needs attention';
+        validationCount.textContent = `${errors} blocking ${errors === 1 ? 'issue' : 'issues'}`;
+      } else if (warnings) {
+        validationTitle.textContent = 'Layout fits with notes';
+        validationCount.textContent = `${warnings} clearance ${warnings === 1 ? 'note' : 'notes'}`;
+      } else {
+        validationTitle.textContent = 'Layout fits';
+        validationCount.textContent = 'No blocking issues';
+      }
+
+      issueList.innerHTML = issues.slice(0, 4).map(issue =>
+        `<li><span aria-hidden="true">${issue.type === 'error' ? '!' : '•'}</span><span>${esc(issue.text)}</span></li>`
+      ).join('');
+    }
+
+    function dimensionLine(x1, y1, x2, y2, label, rotate = false) {
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      const transform = rotate ? ` transform="rotate(-90 ${mx} ${my})"` : '';
+      const ticks = rotate
+        ? `<line class="tick" x1="${x1 - 11}" y1="${y1}" x2="${x1 + 11}" y2="${y1}" />
+           <line class="tick" x1="${x2 - 11}" y1="${y2}" x2="${x2 + 11}" y2="${y2}" />`
+        : `<line class="tick" x1="${x1}" y1="${y1 - 11}" x2="${x1}" y2="${y1 + 11}" />
+           <line class="tick" x1="${x2}" y1="${y2 - 11}" x2="${x2}" y2="${y2 + 11}" />`;
+      return `
+        <line class="dim" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+        ${ticks}
+        <rect class="label-bg" x="${mx - 43}" y="${my - 14}" width="86" height="28"${transform} />
+        <text class="dim-text" x="${mx}" y="${my + 6}" text-anchor="middle"${transform}>${esc(longFeetLabel(label))}</text>`;
+    }
+
+    function furnitureLabel(cx, cy, title, dims, small = false) {
+      return `<text class="furniture-label${small ? ' small' : ''}" x="${cx}" y="${cy}" text-anchor="middle">
+        <tspan x="${cx}" dy="0">${esc(title)}</tspan>
+        <tspan class="furniture-dims" x="${cx}" dy="19">${esc(dims)}</tspan>
+      </text>`;
+    }
+
+    function selectedClass(item) {
+      return selectedItem === item ? ' is-selected' : '';
+    }
+
+    function render() {
+      const viewW = 1120;
+      const viewH = 1080;
+      const availableW = 790;
+      const availableH = 820;
+      const S = Math.min(72, availableW / state.roomWidth, availableH / state.roomDepth);
+      const roomW = state.roomWidth * S;
+      const roomH = state.roomDepth * S;
+      const x0 = 145 + (availableW - roomW) / 2;
+      const y0 = 105 + (availableH - roomH) / 2;
+      const x1 = x0 + roomW;
+      const y1 = y0 + roomH;
+      const g = layoutGeometry();
+
+      const pxRect = rect => ({ x: x0 + rect.x * S, y: y0 + rect.y * S, w: rect.w * S, h: rect.h * S });
+      const w1 = pxRect(g.wardrobe1);
+      const desk = pxRect(g.desk);
+      const w2 = pxRect(g.wardrobe2);
+      const bed = pxRect(g.bed);
+      const side = pxRect(g.side);
+      const entryZone = pxRect(g.entryZone);
+      const bathZone = pxRect(g.bathZone);
+      const balconyZone = pxRect(g.balconyZone);
+
+      const balconyEnd = y0 + state.balconyLength * S;
+      const bathY1 = y0 + state.bathStart * S;
+      const bathY2 = bathY1 + state.bathWidth * S;
+      const entryX1 = x0 + state.entryStart * S;
+      const entryX2 = entryX1 + state.entryWidth * S;
+      const chairCx = desk.x + desk.w / 2;
+      const chairCy = desk.y + desk.h + Math.min(66, S * .9);
+      const monitorW = Math.min(92, desk.w * .32);
+      const laptopW = Math.min(60, desk.w * .22);
+      const equipmentY = desk.y + 18;
+      const dimensions = state.showDimensions
+        ? `${dimensionLine(x0, y0 - 50, x1, y0 - 50, state.roomWidth)}${dimensionLine(x1 + 92, y0, x1 + 92, y1, state.roomDepth, true)}`
+        : '';
+      const clearances = state.showClearance ? `
+        <g class="clearance-zones" aria-hidden="true">
+          <rect class="clear-zone entry-zone" x="${entryZone.x}" y="${entryZone.y}" width="${entryZone.w}" height="${entryZone.h}" />
+          <rect class="clear-zone" x="${bathZone.x}" y="${bathZone.y}" width="${bathZone.w}" height="${bathZone.h}" />
+          <rect class="clear-zone" x="${balconyZone.x}" y="${balconyZone.y}" width="${balconyZone.w}" height="${balconyZone.h}" />
+        </g>` : '';
+
+      svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svg.innerHTML = `
+        <title>${esc(state.projectName)}</title>
+        <desc>Bedroom floor plan measuring ${esc(longFeetLabel(state.roomWidth))} by ${esc(longFeetLabel(state.roomDepth))}.</desc>
+        <defs>
+          <pattern id="minorGrid" width="${S / 4}" height="${S / 4}" patternUnits="userSpaceOnUse">
+            <path d="M ${S / 4} 0 L 0 0 0 ${S / 4}" fill="none" stroke="#e8edf4" stroke-width=".8" />
+          </pattern>
+          <pattern id="majorGrid" width="${S}" height="${S}" patternUnits="userSpaceOnUse">
+            <rect width="${S}" height="${S}" fill="url(#minorGrid)" />
+            <path d="M ${S} 0 L 0 0 0 ${S}" fill="none" stroke="#d4dce8" stroke-width="1.15" />
+          </pattern>
+          <pattern id="wood" width="34" height="18" patternUnits="userSpaceOnUse">
+            <rect width="34" height="18" fill="#dcc29c" />
+            <path d="M0 5 C9 1 21 9 34 4 M0 13 C12 8 24 17 34 11" fill="none" stroke="#a98252" stroke-width=".65" opacity=".46" />
+          </pattern>
+          <pattern id="fabric" width="12" height="12" patternUnits="userSpaceOnUse">
+            <rect width="12" height="12" fill="#f3f5f8" />
+            <circle cx="3" cy="3" r=".7" fill="#cfd6e1" />
+            <circle cx="9" cy="9" r=".7" fill="#cfd6e1" />
+          </pattern>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#253047" flood-opacity=".14" />
+          </filter>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto-start-reverse">
+            <path d="M0 0L8 4L0 8Z" fill="#202938" />
+          </marker>
+          <style>
+            .wall{stroke:#1e2634;stroke-width:14;fill:none;stroke-linecap:square}.opening{fill:#fff;stroke:#263145;stroke-width:2}.slider{stroke:#263145;stroke-width:2;fill:#fff}.furniture{stroke:#343f50;stroke-width:2.2;fill:url(#wood)}.desk{stroke:#343f50;stroke-width:2.2;fill:#d7b985}.bed{stroke:#3b4658;stroke-width:2.4;fill:url(#fabric)}.soft{fill:#fbfcfd;stroke:#9aa6b8;stroke-width:1.4}.detail{fill:none;stroke:#596579;stroke-width:1.4}.thin{fill:none;stroke:#6a7586;stroke-width:1}.equipment{fill:#f8fafc;stroke:#30394a;stroke-width:1.4}.screen{fill:#283244;stroke:#111827;stroke-width:1.3}.furniture-label{fill:#222b39;font:700 15px Inter,Arial,sans-serif;letter-spacing:.01em;pointer-events:none}.furniture-label.small{font-size:12px}.furniture-dims{font-weight:600;font-size:12px;fill:#4b5668}.room-label{fill:#283244;font:700 15px Inter,Arial,sans-serif;letter-spacing:.05em}.dim{stroke:#202938;stroke-width:1.5;marker-start:url(#arrow);marker-end:url(#arrow)}.tick{stroke:#202938;stroke-width:1.5}.dim-text{fill:#202938;font:650 20px Inter,Arial,sans-serif}.label-bg{fill:#fff}.clear-zone{fill:#ef8f3420;stroke:#d86f0e;stroke-width:1.3;stroke-dasharray:7 6}.entry-zone{fill:#e24b3b1c;stroke:#c63d30}.is-selected .selection-outline{fill:none;stroke:#315bd8;stroke-width:4;stroke-dasharray:9 6;vector-effect:non-scaling-stroke}.drag-handle{fill:#315bd8;stroke:#fff;stroke-width:2}.compass{fill:none;stroke:#293346;stroke-width:2.5}.compass-text{fill:#293346;font:700 13px Inter,Arial,sans-serif}
+          </style>
+        </defs>
+
+        <rect width="${viewW}" height="${viewH}" fill="#fff" />
+        <rect x="${x0}" y="${y0}" width="${roomW}" height="${roomH}" fill="url(#majorGrid)" />
+        ${clearances}
+
+        <g id="structure" data-item="room" class="${selectedClass('room')}">
+          <path class="wall" d="M${x0} ${y0}H${x1}" />
+          <path class="wall" d="M${x0} ${balconyEnd}V${y1}" />
+          <path class="wall" d="M${x1} ${y0}V${bathY1} M${x1} ${bathY2}V${y1}" />
+          <path class="wall" d="M${x0} ${y1}H${entryX1} M${entryX2} ${y1}H${x1}" />
+          <rect class="opening" x="${x0 - 8}" y="${y0}" width="16" height="${state.balconyLength * S}" />
+          <line class="slider" x1="${x0 - 3}" y1="${y0 + 6}" x2="${x0 - 3}" y2="${balconyEnd - 6}" />
+          <line class="slider" x1="${x0 + 3}" y1="${y0 + 6}" x2="${x0 + 3}" y2="${balconyEnd - 6}" />
+          <rect class="opening" x="${x1 - 8}" y="${bathY1}" width="16" height="${state.bathWidth * S}" />
+          <line class="slider" x1="${x1 - 3}" y1="${bathY1 + 6}" x2="${x1 - 3}" y2="${bathY2 - 6}" />
+          <line class="slider" x1="${x1 + 3}" y1="${bathY1 + 6}" x2="${x1 + 3}" y2="${bathY2 - 6}" />
+          <rect class="opening" x="${entryX1}" y="${y1 - 8}" width="${state.entryWidth * S}" height="16" />
+          <line class="slider" x1="${entryX1 + 6}" y1="${y1 - 3}" x2="${entryX2 - 6}" y2="${y1 - 3}" />
+          <line class="slider" x1="${entryX1 + 6}" y1="${y1 + 3}" x2="${entryX2 - 6}" y2="${y1 + 3}" />
+        </g>
+
+        <g id="wardrobes" data-item="wardrobes" class="${selectedClass('wardrobes')}" filter="url(#shadow)">
+          <rect class="furniture" x="${w1.x + 7}" y="${w1.y + 7}" width="${Math.max(0, w1.w - 7)}" height="${Math.max(0, w1.h - 7)}" />
+          <rect class="furniture" x="${w2.x}" y="${w2.y + 7}" width="${Math.max(0, w2.w - 7)}" height="${Math.max(0, w2.h - 7)}" />
+          <line class="detail" x1="${w1.x + w1.w / 2}" y1="${w1.y + 8}" x2="${w1.x + w1.w / 2}" y2="${w1.y + w1.h}" />
+          <line class="detail" x1="${w2.x + w2.w / 2}" y1="${w2.y + 8}" x2="${w2.x + w2.w / 2}" y2="${w2.y + w2.h}" />
+          <rect class="selection-outline" x="${w1.x}" y="${w1.y}" width="${w1.w}" height="${w1.h}" />
+          <rect class="selection-outline" x="${w2.x}" y="${w2.y}" width="${w2.w}" height="${w2.h}" />
+        </g>
+        ${furnitureLabel(w1.x + w1.w / 2, w1.y + w1.h - 52, 'WARDROBE 1', `${feetLabel(state.wardrobeWidth)} × ${feetLabel(state.wardrobeDepth)}`, true)}
+        ${furnitureLabel(w2.x + w2.w / 2, w2.y + w2.h - 52, 'WARDROBE 2', `${feetLabel(state.wardrobeWidth)} × ${feetLabel(state.wardrobeDepth)}`, true)}
+
+        <g id="study-desk" data-item="desk" class="${selectedClass('desk')}" filter="url(#shadow)">
+          <rect class="desk" x="${desk.x}" y="${desk.y + 7}" width="${desk.w}" height="${Math.max(0, desk.h - 7)}" />
+          <rect class="selection-outline" x="${desk.x}" y="${desk.y}" width="${desk.w}" height="${desk.h}" />
+          <rect class="screen" x="${chairCx - monitorW / 2 - 14}" y="${equipmentY}" width="${monitorW}" height="32" rx="3" />
+          <rect class="equipment" x="${chairCx - 25}" y="${equipmentY + 33}" width="22" height="6" rx="2" />
+          <rect class="equipment" x="${chairCx - 68}" y="${equipmentY + 48}" width="98" height="26" rx="3" />
+          <rect class="equipment" x="${chairCx + 42}" y="${equipmentY + 50}" width="24" height="28" rx="9" />
+          <g transform="translate(${chairCx + monitorW / 2 + 3} ${equipmentY - 2}) rotate(12)">
+            <rect class="equipment" x="0" y="0" width="${laptopW}" height="43" rx="3" />
+            <rect class="screen" x="4" y="4" width="${Math.max(10, laptopW - 8)}" height="25" rx="2" />
+          </g>
+        </g>
+        ${furnitureLabel(desk.x + desk.w / 2, desk.y + desk.h - 24, 'STUDY DESK', `${feetLabel(state.deskWidth)} × ${feetLabel(state.deskDepth)}`, true)}
+
+        <g id="desk-chair" aria-label="Desk chair" transform="translate(${chairCx} ${chairCy})" filter="url(#shadow)">
+          <rect class="soft" x="-35" y="-33" width="70" height="54" rx="17" />
+          <path class="soft" d="M-38 15Q0 40 38 15L34 33Q0 51-34 33Z" />
+        </g>
+
+        <g id="bed-group" data-item="bed" data-draggable="bed" class="${selectedClass('bed')}">
+          <g filter="url(#shadow)">
+            <rect class="bed" x="${bed.x}" y="${bed.y}" width="${bed.w}" height="${bed.h}" rx="16" />
+            <rect class="soft" x="${bed.x + 11}" y="${bed.y + bed.h - Math.min(95, bed.h * .18)}" width="${Math.max(22, bed.w / 2 - 17)}" height="${Math.min(75, bed.h * .14)}" rx="12" />
+            <rect class="soft" x="${bed.x + bed.w / 2 + 6}" y="${bed.y + bed.h - Math.min(95, bed.h * .18)}" width="${Math.max(22, bed.w / 2 - 17)}" height="${Math.min(75, bed.h * .14)}" rx="12" />
+            <path class="soft" d="M${bed.x + 4} ${bed.y + bed.h - Math.min(165, bed.h * .3)}Q${bed.x + bed.w / 2} ${bed.y + bed.h - Math.min(198, bed.h * .36)} ${bed.x + bed.w - 4} ${bed.y + bed.h - Math.min(165, bed.h * .3)}L${bed.x + bed.w - 4} ${bed.y + bed.h - Math.min(120, bed.h * .22)}Q${bed.x + bed.w / 2} ${bed.y + bed.h - Math.min(148, bed.h * .27)} ${bed.x + 4} ${bed.y + bed.h - Math.min(120, bed.h * .22)}Z" />
+            <rect class="detail" x="${bed.x + 5}" y="${bed.y + bed.h - 15}" width="${Math.max(10, bed.w - 10)}" height="10" />
+            <rect class="furniture" x="${side.x}" y="${side.y}" width="${side.w}" height="${side.h}" />
+            <line class="detail" x1="${side.x + 8}" y1="${side.y + 21}" x2="${side.x + side.w - 8}" y2="${side.y + 21}" />
+            <circle cx="${side.x + side.w / 2}" cy="${side.y + 14}" r="2.5" fill="#363f4e" />
+          </g>
+          <rect class="selection-outline" x="${Math.min(bed.x, side.x) - 6}" y="${Math.min(bed.y, side.y) - 6}" width="${Math.max(bed.x + bed.w, side.x + side.w) - Math.min(bed.x, side.x) + 12}" height="${Math.max(bed.y + bed.h, side.y + side.h) - Math.min(bed.y, side.y) + 12}" rx="12" />
+          ${selectedItem === 'bed' ? `<circle class="drag-handle" cx="${bed.x + bed.w / 2}" cy="${bed.y + bed.h / 2}" r="9" />` : ''}
+        </g>
+        ${furnitureLabel(bed.x + bed.w / 2, bed.y + bed.h * .42, 'BED', `${feetLabel(state.bedWidth)} × ${feetLabel(state.bedLength)}`)}
+        ${furnitureLabel(side.x + side.w / 2, side.y + side.h / 2 - 6, 'BEDSIDE', `${feetLabel(state.sideWidth)} × ${feetLabel(state.sideDepth)}`, true)}
+
+        <text class="room-label" x="${x0 - 48}" y="${y0 + state.balconyLength * S / 2}" text-anchor="middle" transform="rotate(-90 ${x0 - 48} ${y0 + state.balconyLength * S / 2})">BALCONY ${esc(feetLabel(state.balconyLength))}</text>
+        <text class="room-label" x="${x1 + 52}" y="${(bathY1 + bathY2) / 2}" text-anchor="middle" transform="rotate(-90 ${x1 + 52} ${(bathY1 + bathY2) / 2})">BATHROOM</text>
+        <text class="room-label" x="${(entryX1 + entryX2) / 2}" y="${y1 + 49}" text-anchor="middle">ENTRY</text>
+        ${dimensions}
+
+        <g id="orientation" transform="translate(78 ${Math.min(viewH - 92, y1 - 28)})">
+          <circle class="compass" cx="0" cy="0" r="32" />
+          <path d="M0 27L-6 3L0 8L6 3Z" fill="#315bd8" />
+          <path d="M0-27L-6-3L0-8L6-3Z" fill="#293346" />
+          <text class="compass-text" x="0" y="49" text-anchor="middle">N</text>
+          <text class="compass-text" x="0" y="-40" text-anchor="middle">S</text>
+        </g>
+      `;
+
+      svg.dataset.scale = String(S);
+      svg.dataset.x0 = String(x0);
+      svg.dataset.y0 = String(y0);
+      document.getElementById('selectionLabel').innerHTML = selectionCopy();
+      validateLayout();
+    }
+
+    function selectionCopy() {
+      const labels = {
+        bed: '<strong>Bed selected</strong> · drag or use arrow keys to move',
+        desk: '<strong>Study desk selected</strong> · edit its dimensions in the left panel',
+        wardrobes: '<strong>Wardrobes selected</strong> · both use the same dimensions',
+        room: '<strong>Room selected</strong> · edit its dimensions and openings'
+      };
+      return labels[selectedItem] || labels.bed;
+    }
+
+    function openSectionFor(item) {
+      const section = item === 'bed' ? 'bed' : item === 'room' ? 'room' : 'top-row';
+      const details = document.querySelector(`[data-section="${section}"]`);
+      if (details) details.open = true;
+    }
+
+    function pointInSvg(event) {
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      return point.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    function startDrag(event) {
+      const target = event.target.closest('[data-draggable="bed"]');
+      if (!target || event.button !== 0) return;
+      event.preventDefault();
+      selectedItem = 'bed';
+      const point = pointInSvg(event);
+      drag = {
+        pointerId: event.pointerId,
+        x: point.x,
+        y: point.y,
+        bedLeft: state.bedLeft,
+        bedTop: state.bedTop,
+        snapshot: cloneState(state)
+      };
+      document.body.classList.add('is-dragging');
+      render();
+    }
+
+    function moveDrag(event) {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const point = pointInSvg(event);
+      const scale = Number(svg.dataset.scale);
+      let nextLeft = drag.bedLeft + (point.x - drag.x) / scale;
+      let nextTop = drag.bedTop + (point.y - drag.y) / scale;
+      if (state.snapEnabled) {
+        nextLeft = snap(nextLeft);
+        nextTop = snap(nextTop);
+      }
+      const minLeft = state.sidePosition === 'left' ? state.sideWidth : 0;
+      const maxLeft = state.roomWidth - state.bedWidth - (state.sidePosition === 'right' ? state.sideWidth : 0);
+      state.bedLeft = maxLeft >= minLeft ? clamp(nextLeft, minLeft, maxLeft) : nextLeft;
+      state.bedTop = clamp(nextTop, 0, Math.max(0, state.roomDepth - state.bedLength));
+      state.bedLeft = round(state.bedLeft);
+      state.bedTop = round(state.bedTop);
+      syncControls();
+      render();
+    }
+
+    function endDrag(event) {
+      if (!drag || (event && event.pointerId !== drag.pointerId)) return;
+      const previous = drag.snapshot;
+      drag = null;
+      document.body.classList.remove('is-dragging');
+      commit(previous);
+      render();
+    }
+
+    svg.addEventListener('pointerdown', event => {
+      const item = event.target.closest('[data-item]');
+      if (item) {
+        selectedItem = item.dataset.item;
+        openSectionFor(selectedItem);
+        render();
+      }
+      startDrag(event);
+    });
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+
+    svg.addEventListener('keydown', event => {
+      if (selectedItem !== 'bed' || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      const previous = cloneState(state);
+      const amount = event.shiftKey ? 1 / 12 : state.snapSize;
+      if (event.key === 'ArrowLeft') state.bedLeft -= amount;
+      if (event.key === 'ArrowRight') state.bedLeft += amount;
+      if (event.key === 'ArrowUp') state.bedTop -= amount;
+      if (event.key === 'ArrowDown') state.bedTop += amount;
+      normalize();
+      syncControls();
+      render();
+      commit(previous);
+    });
+
+    stateControls.forEach(control => {
+      control.addEventListener('focus', () => { editStart = cloneState(state); });
+      control.addEventListener('input', event => {
+        if (!editStart) editStart = cloneState(state);
+        const id = event.currentTarget.id;
+        if (event.currentTarget.type === 'checkbox') state[id] = event.currentTarget.checked;
+        else if (id === 'sidePosition') state[id] = event.currentTarget.value;
+        else if (id === 'snapSize') state[id] = Number(event.currentTarget.value);
+        else {
+          const value = Number(event.currentTarget.value);
+          if (!Number.isFinite(value)) return;
+          state[id] = value;
+        }
+        normalize(id);
+        syncControls();
+        render();
+      });
+      control.addEventListener('change', () => {
+        commit(editStart || cloneState(state));
+        editStart = null;
+      });
+    });
+
+    projectName.addEventListener('focus', () => { editStart = cloneState(state); });
+    projectName.addEventListener('input', () => {
+      if (!editStart) editStart = cloneState(state);
+      state.projectName = projectName.value.slice(0, 80);
+      render();
+    });
+    projectName.addEventListener('change', () => {
+      normalize();
+      syncControls();
+      render();
+      commit(editStart || cloneState(state));
+      editStart = null;
+    });
+
+    document.addEventListener('keydown', event => {
+      const modifier = event.ctrlKey || event.metaKey;
+      if (!modifier || event.key.toLowerCase() !== 'z') return;
+      event.preventDefault();
+      if (event.shiftKey) redo(); else undo();
+    });
+
+    undoButton.addEventListener('click', undo);
+    redoButton.addEventListener('click', redo);
+
+    function serializedSvg() {
+      const clone = svg.cloneNode(true);
+      clone.removeAttribute('tabindex');
+      clone.removeAttribute('data-scale');
+      clone.removeAttribute('data-x0');
+      clone.removeAttribute('data-y0');
+      clone.setAttribute('width', '1120');
+      clone.setAttribute('height', '1080');
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      clone.querySelectorAll('.is-selected').forEach(node => node.classList.remove('is-selected'));
+      clone.querySelectorAll('.selection-outline, .drag-handle').forEach(node => node.remove());
+      clone.querySelectorAll('[data-item], [data-draggable]').forEach(node => {
+        node.removeAttribute('data-item');
+        node.removeAttribute('data-draggable');
+      });
+      const metadata = document.createElementNS('http://www.w3.org/2000/svg', 'metadata');
+      metadata.textContent = JSON.stringify({ schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), settings: state });
+      clone.insertBefore(metadata, clone.firstChild);
+      return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clone)}`;
+    }
+
+    function safeFilename(extension) {
+      const base = state.projectName
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60) || 'bedroom-floor-plan';
+      return `${base}.${extension}`;
+    }
+
+    function downloadBlob(contents, type, filename) {
+      const blob = new Blob([contents], { type });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const copied = document.execCommand('copy');
+      area.remove();
+      if (!copied) throw new Error('Clipboard unavailable');
+    }
+
+    document.getElementById('exportSvg').addEventListener('click', () => {
+      downloadBlob(serializedSvg(), 'image/svg+xml;charset=utf-8', safeFilename('svg'));
+      showToast('Editable SVG exported');
+    });
+
+    document.getElementById('copySvg').addEventListener('click', async () => {
+      try {
+        await copyText(serializedSvg());
+        showToast('SVG copied to clipboard');
+      } catch (error) {
+        showToast('Clipboard access is unavailable. Use Export SVG instead.');
+      }
+    });
+
+    document.getElementById('printPlan').addEventListener('click', () => window.print());
+
+    document.getElementById('exportJson').addEventListener('click', () => {
+      const project = {
+        app: 'Bedroom Floor Plan Editor',
+        schemaVersion: SCHEMA_VERSION,
+        exportedAt: new Date().toISOString(),
+        settings: state
+      };
+      downloadBlob(JSON.stringify(project, null, 2), 'application/json', safeFilename('json'));
+      showToast('Project file exported');
+    });
+
+    const projectFile = document.getElementById('projectFile');
+    document.getElementById('importJson').addEventListener('click', () => projectFile.click());
+    projectFile.addEventListener('change', async () => {
+      const file = projectFile.files && projectFile.files[0];
+      projectFile.value = '';
+      if (!file) return;
+      try {
+        if (file.size > 1024 * 1024) throw new Error('Project file is too large');
+        const parsed = JSON.parse(await file.text());
+        const candidate = parsed && typeof parsed === 'object' ? (parsed.settings || parsed) : null;
+        if (!candidate || typeof candidate !== 'object') throw new Error('Invalid project');
+        const previous = cloneState(state);
+        Object.assign(state, DEFAULTS, pickKnownSettings(candidate));
+        normalize();
+        syncControls();
+        render();
+        commit(previous, 'Project imported');
+      } catch (error) {
+        showToast('Could not import this project file');
+      }
+    });
+
+    const resetDialog = document.getElementById('resetDialog');
+    document.getElementById('reset').addEventListener('click', () => resetDialog.showModal());
+    document.getElementById('cancelReset').addEventListener('click', () => resetDialog.close());
+    document.getElementById('confirmReset').addEventListener('click', () => {
+      const previous = cloneState(state);
+      Object.keys(state).forEach(key => delete state[key]);
+      Object.assign(state, DEFAULTS);
+      selectedItem = 'bed';
+      normalize();
+      syncControls();
+      render();
+      commit(previous, 'Design reset');
+      resetDialog.close();
+    });
+
+    function showToast(message) {
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    loadLocal();
+    normalize();
+    syncControls();
+    updateHistoryButtons();
+    render();
+    if (storageAvailable) saveLocal();
+  </script>
+</body>
+</html>

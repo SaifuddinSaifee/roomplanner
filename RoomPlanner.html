@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bedroom Floor Plan Editor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f0ea;
+      --panel: rgba(255, 255, 255, 0.92);
+      --ink: #242524;
+      --muted: #6e706c;
+      --line: #ded9cf;
+      --accent: #6f604d;
+      --accent-soft: #ebe3d8;
+      --good: #246c4b;
+      --warn: #a15c16;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255,255,255,.9), transparent 28rem),
+        var(--page);
+    }
+
+    button, input { font: inherit; }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 26px;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(25px, 3vw, 34px);
+      font-weight: 500;
+      line-height: 1.08;
+    }
+
+    .intro {
+      margin: 11px 0 22px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    details {
+      margin: 0 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,.82);
+      overflow: hidden;
+    }
+
+    summary {
+      padding: 13px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 750;
+      user-select: none;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 0 14px 15px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    label.wide { grid-column: 1 / -1; }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 9px 10px;
+      color: var(--ink);
+      border: 1px solid #cbc5ba;
+      border-radius: 8px;
+      background: #fff;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(111,96,77,.12);
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      grid-column: 1 / -1;
+      color: var(--ink);
+    }
+
+    .toggle input { accent-color: var(--accent); }
+
+    .status {
+      margin: 15px 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #faf8f4;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .status strong { color: var(--good); }
+    .status.warn strong { color: var(--warn); }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    button {
+      min-height: 40px;
+      padding: 9px 12px;
+      border: 1px solid #bdb5a8;
+      border-radius: 10px;
+      color: var(--ink);
+      background: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    button:hover { background: #f7f3ed; }
+
+    button.primary {
+      grid-column: 1 / -1;
+      border-color: var(--accent);
+      color: #fff;
+      background: var(--accent);
+    }
+
+    button.primary:hover { background: #594c3d; }
+
+    .figma-note {
+      margin: 13px 2px 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .canvas-wrap {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      padding: 26px;
+      overflow: auto;
+    }
+
+    .sheet {
+      width: min(100%, 980px);
+      padding: 14px;
+      border: 1px solid rgba(45,44,41,.1);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 20px 70px rgba(50,45,38,.13);
+    }
+
+    #plan {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1120 / 1080;
+      background: white;
+      border-radius: 10px;
+    }
+
+    .caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 11px 7px 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      color: #534737;
+      background: #eee7dd;
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .canvas-wrap { padding: 14px; }
+    }
+
+    @media print {
+      .sidebar, .caption { display: none; }
+      .app { display: block; }
+      .canvas-wrap, .sheet { padding: 0; box-shadow: none; border: 0; }
+      .sheet { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar">
+      <p class="eyebrow">Editable architectural SVG</p>
+      <h1>Bedroom plan</h1>
+      <p class="intro">
+        All furniture is calculated from real dimensions in feet. Change a value and the vector plan redraws instantly.
+      </p>
+
+      <details open>
+        <summary>Room & openings</summary>
+        <div class="fields">
+          <label>Room width (ft)<input id="roomWidth" type="number" min="6" max="20" step="0.25" /></label>
+          <label>Room depth (ft)<input id="roomDepth" type="number" min="8" max="24" step="0.25" /></label>
+          <label>Balcony opening (ft)<input id="balconyLength" type="number" min="2" max="10" step="0.25" /></label>
+          <label>Entry starts at (ft)<input id="entryStart" type="number" min="0" max="12" step="0.25" /></label>
+          <label>Entry width (ft)<input id="entryWidth" type="number" min="1.5" max="4" step="0.25" /></label>
+          <label>Bathroom start (ft)<input id="bathStart" type="number" min="0" max="16" step="0.25" /></label>
+          <label>Bathroom opening (ft)<input id="bathWidth" type="number" min="1.5" max="4" step="0.25" /></label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Wardrobes & workstation</summary>
+        <div class="fields">
+          <label>Each wardrobe W (ft)<input id="wardrobeWidth" data-top="wardrobe" type="number" min="1.5" max="4" step="0.25" /></label>
+          <label>Study desk W (ft)<input id="deskWidth" data-top="desk" type="number" min="3" max="7" step="0.25" /></label>
+          <label>Wardrobe depth (ft)<input id="wardrobeDepth" type="number" min="1.5" max="3" step="0.25" /></label>
+          <label>Desk depth (ft)<input id="deskDepth" type="number" min="1.5" max="3" step="0.25" /></label>
+          <label class="toggle"><input id="autoFit" type="checkbox" checked /> Keep top row fitted to room width</label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Bed & bedside table</summary>
+        <div class="fields">
+          <label>Bed width (ft)<input id="bedWidth" type="number" min="2.5" max="7" step="0.25" /></label>
+          <label>Bed length (ft)<input id="bedLength" type="number" min="5" max="8" step="0.25" /></label>
+          <label>Bed from left wall (ft)<input id="bedLeft" type="number" min="0" max="6" step="0.25" /></label>
+          <label>Bedside width (ft)<input id="sideWidth" type="number" min="1" max="3" step="0.25" /></label>
+          <label>Bedside depth (ft)<input id="sideDepth" type="number" min="1" max="3" step="0.25" /></label>
+        </div>
+      </details>
+
+      <div id="status" class="status" aria-live="polite"></div>
+
+      <div class="actions">
+        <button id="exportSvg" class="primary">Export SVG for Figma</button>
+        <button id="copySvg">Copy SVG</button>
+        <button id="exportJson">Export dimensions</button>
+        <button id="reset">Reset design</button>
+      </div>
+
+      <p class="figma-note">
+        In Figma, use <strong>File → Place image</strong> and select the exported SVG. Shapes and text remain editable. For code-level edits, update <code>DEFAULTS</code> near the bottom of this HTML file.
+      </p>
+    </aside>
+
+    <section class="canvas-wrap">
+      <div class="sheet">
+        <svg id="plan" role="img" aria-label="Editable top-view architectural plan of a bedroom"></svg>
+        <div class="caption">
+          <span>Orthographic floor plan · dimensions in feet and inches</span>
+          <span>Top = South · Bottom = North</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Edit these defaults directly when using the file as a code-based design source.
+    const DEFAULTS = Object.freeze({
+      roomWidth: 9,
+      roomDepth: 11.5,
+      balconyLength: 5,
+      entryStart: 6.5,
+      entryWidth: 2,
+      bathStart: 3.35,
+      bathWidth: 2.35,
+      wardrobeWidth: 2.5,
+      wardrobeDepth: 2,
+      deskWidth: 4,
+      deskDepth: 2,
+      bedWidth: 4.5,
+      bedLength: 6.5,
+      bedLeft: 1.5,
+      sideWidth: 1.5,
+      sideDepth: 1.5
+    });
+
+    const state = { ...DEFAULTS };
+    const svg = document.getElementById('plan');
+    const status = document.getElementById('status');
+    const numericInputs = [...document.querySelectorAll('input[type="number"]')];
+
+    const esc = value => String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+
+    function feetLabel(value) {
+      let whole = Math.floor(value + 1e-7);
+      let inches = Math.round((value - whole) * 12);
+      if (inches === 12) { whole += 1; inches = 0; }
+      return `${whole}'-${inches}"`;
+    }
+
+    function inchesLabel(value) {
+      return `${Math.round(value * 12)} in`;
+    }
+
+    function dimensionLine(x1, y1, x2, y2, label, rotate = false) {
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      const transform = rotate ? ` transform="rotate(-90 ${mx} ${my})"` : '';
+      return `
+        <line class="dim" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />
+        <line class="tick" x1="${x1}" y1="${y1 - 13}" x2="${x1}" y2="${y1 + 13}" />
+        <line class="tick" x1="${x2}" y1="${y2 - 13}" x2="${x2}" y2="${y2 + 13}" />
+        <rect class="label-bg" x="${mx - 46}" y="${my - 15}" width="92" height="30"${transform} />
+        <text class="dim-text" x="${mx}" y="${my + 7}" text-anchor="middle"${transform}>${esc(label)}</text>`;
+    }
+
+    function furnitureLabel(cx, cy, title, dims, small = false) {
+      return `<text class="furniture-label${small ? ' small' : ''}" x="${cx}" y="${cy}" text-anchor="middle">
+        <tspan x="${cx}" dy="0">${esc(title)}</tspan>
+        <tspan class="furniture-dims" x="${cx}" dy="21">${esc(dims)}</tspan>
+      </text>`;
+    }
+
+    function render() {
+      const S = 72;
+      const x0 = 214;
+      const y0 = 112;
+      const roomW = state.roomWidth * S;
+      const roomH = state.roomDepth * S;
+      const x1 = x0 + roomW;
+      const y1 = y0 + roomH;
+      const balconyEnd = y0 + state.balconyLength * S;
+      const bathY1 = y0 + state.bathStart * S;
+      const bathY2 = bathY1 + state.bathWidth * S;
+      const entryX1 = x0 + state.entryStart * S;
+      const entryX2 = entryX1 + state.entryWidth * S;
+
+      const w1W = state.wardrobeWidth * S;
+      const deskW = state.deskWidth * S;
+      const w2W = state.wardrobeWidth * S;
+      const wardD = state.wardrobeDepth * S;
+      const deskD = state.deskDepth * S;
+      const deskX = x0 + w1W;
+      const w2X = deskX + deskW;
+
+      const bedX = x0 + state.bedLeft * S;
+      const bedY = y1 - state.bedLength * S;
+      const bedW = state.bedWidth * S;
+      const bedH = state.bedLength * S;
+      const sideW = state.sideWidth * S;
+      const sideH = state.sideDepth * S;
+      const sideX = bedX - sideW;
+      const sideY = y1 - sideH;
+
+      const chairCx = deskX + deskW / 2;
+      const chairCy = y0 + deskD + 70;
+      const monitorW = Math.min(98, deskW * .34);
+      const laptopW = Math.min(66, deskW * .23);
+      const equipmentY = y0 + 20;
+
+      const topSum = state.wardrobeWidth * 2 + state.deskWidth;
+      const bedRight = state.bedLeft + state.bedWidth;
+      const entryClearance = state.entryStart - bedRight;
+      const sideFits = sideX >= x0 - .1;
+      const topFits = Math.abs(topSum - state.roomWidth) < .01;
+      const entryClear = entryClearance >= 0;
+
+      const warnings = [];
+      if (!topFits) warnings.push(`Top row is ${feetLabel(topSum)} across, not ${feetLabel(state.roomWidth)}.`);
+      if (!sideFits) warnings.push('The bedside table extends beyond the left wall.');
+      if (!entryClear) warnings.push('The bed overlaps the entry opening.');
+
+      status.classList.toggle('warn', warnings.length > 0);
+      status.innerHTML = warnings.length
+        ? `<strong>Check layout</strong><br>${warnings.map(esc).join('<br>')}`
+        : `<strong>Layout fits.</strong><br>Top row: ${feetLabel(topSum)}. Bed-to-entry clearance: ${feetLabel(entryClearance)} (${inchesLabel(entryClearance)}). Desk: ${inchesLabel(state.deskWidth)} × ${inchesLabel(state.deskDepth)}.`;
+
+      svg.setAttribute('viewBox', '0 0 1120 1080');
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svg.innerHTML = `
+        <defs>
+          <pattern id="floor" width="22" height="22" patternUnits="userSpaceOnUse">
+            <rect width="22" height="22" fill="#f7f4ee" />
+            <path d="M0 22L22 0M-5 5L5-5M17 27L27 17" stroke="#ede7de" stroke-width=".7" opacity=".55" />
+          </pattern>
+          <pattern id="wood" width="34" height="18" patternUnits="userSpaceOnUse">
+            <rect width="34" height="18" fill="#dfc6a1" />
+            <path d="M0 5 C9 1 21 9 34 4 M0 13 C12 8 24 17 34 11" fill="none" stroke="#b99569" stroke-width=".65" opacity=".45" />
+          </pattern>
+          <pattern id="fabric" width="12" height="12" patternUnits="userSpaceOnUse">
+            <rect width="12" height="12" fill="#f5f1e9" />
+            <circle cx="3" cy="3" r=".7" fill="#ded7ca" />
+            <circle cx="9" cy="9" r=".7" fill="#ded7ca" />
+          </pattern>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#3f392f" flood-opacity=".12" />
+          </filter>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M0 0L8 4L0 8Z" fill="#202220" />
+          </marker>
+          <style>
+            .wall { stroke:#292b2a; stroke-width:14; fill:none; stroke-linecap:square; }
+            .opening { fill:#fff; stroke:#262827; stroke-width:2; }
+            .slider { stroke:#262827; stroke-width:2; fill:#fff; }
+            .furniture { stroke:#343532; stroke-width:2.2; fill:url(#wood); }
+            .desk { stroke:#343532; stroke-width:2.2; fill:url(#wood); }
+            .bed { stroke:#454542; stroke-width:2.4; fill:url(#fabric); }
+            .soft { fill:#faf8f3; stroke:#aaa397; stroke-width:1.5; }
+            .detail { fill:none; stroke:#605e58; stroke-width:1.5; }
+            .thin { fill:none; stroke:#706d66; stroke-width:1; }
+            .equipment { fill:#f7f7f5; stroke:#30312f; stroke-width:1.5; }
+            .screen { fill:#252928; stroke:#111; stroke-width:1.4; }
+            .furniture-label { fill:#222321; font:700 16px Inter,Arial,sans-serif; letter-spacing:.01em; }
+            .furniture-label.small { font-size:13px; }
+            .furniture-dims { font-weight:600; font-size:14px; }
+            .room-label { fill:#262725; font:700 17px Inter,Arial,sans-serif; letter-spacing:.05em; }
+            .dim { stroke:#242624; stroke-width:1.7; marker-start:url(#arrow); marker-end:url(#arrow); }
+            .tick { stroke:#242624; stroke-width:1.7; }
+            .dim-text { fill:#222422; font:600 26px Georgia,serif; }
+            .label-bg { fill:#fff; }
+            .clearance { stroke:#6d675f; stroke-width:1.5; stroke-dasharray:8 7; }
+          </style>
+        </defs>
+
+        <rect width="1120" height="1080" fill="#fff" />
+        <rect x="${x0}" y="${y0}" width="${roomW}" height="${roomH}" fill="url(#floor)" />
+
+        <!-- Structural shell. Top is South; bottom is North. -->
+        <path class="wall" d="M${x0} ${y0}H${x1}" />
+        <path class="wall" d="M${x0} ${balconyEnd}V${y1}" />
+        <path class="wall" d="M${x1} ${y0}V${bathY1} M${x1} ${bathY2}V${y1}" />
+        <path class="wall" d="M${x0} ${y1}H${entryX1} M${entryX2} ${y1}H${x1}" />
+
+        <!-- Sliding/opening symbols -->
+        <rect class="opening" x="${x0 - 8}" y="${y0}" width="16" height="${state.balconyLength * S}" />
+        <line class="slider" x1="${x0 - 3}" y1="${y0 + 6}" x2="${x0 - 3}" y2="${balconyEnd - 6}" />
+        <line class="slider" x1="${x0 + 3}" y1="${y0 + 6}" x2="${x0 + 3}" y2="${balconyEnd - 6}" />
+
+        <rect class="opening" x="${x1 - 8}" y="${bathY1}" width="16" height="${state.bathWidth * S}" />
+        <line class="slider" x1="${x1 - 3}" y1="${bathY1 + 6}" x2="${x1 - 3}" y2="${bathY2 - 6}" />
+        <line class="slider" x1="${x1 + 3}" y1="${bathY1 + 6}" x2="${x1 + 3}" y2="${bathY2 - 6}" />
+
+        <rect class="opening" x="${entryX1}" y="${y1 - 8}" width="${state.entryWidth * S}" height="16" />
+        <line class="slider" x1="${entryX1 + 6}" y1="${y1 - 3}" x2="${entryX2 - 6}" y2="${y1 - 3}" />
+        <line class="slider" x1="${entryX1 + 6}" y1="${y1 + 3}" x2="${entryX2 - 6}" y2="${y1 + 3}" />
+
+        <!-- Top furniture row -->
+        <g filter="url(#shadow)">
+          <rect class="furniture" x="${x0 + 7}" y="${y0 + 7}" width="${Math.max(0, w1W - 7)}" height="${wardD - 7}" />
+          <rect class="desk" x="${deskX}" y="${y0 + 7}" width="${deskW}" height="${deskD - 7}" />
+          <rect class="furniture" x="${w2X}" y="${y0 + 7}" width="${Math.max(0, w2W - 7)}" height="${wardD - 7}" />
+        </g>
+        <line class="detail" x1="${x0 + w1W / 2}" y1="${y0 + 7}" x2="${x0 + w1W / 2}" y2="${y0 + wardD}" />
+        <line class="detail" x1="${w2X + w2W / 2}" y1="${y0 + 7}" x2="${w2X + w2W / 2}" y2="${y0 + wardD}" />
+        <path class="detail" d="M${x0 + w1W/2 - 12} ${y0 + wardD - 12}h24 M${w2X + w2W/2 - 12} ${y0 + wardD - 12}h24" />
+
+        ${furnitureLabel(x0 + w1W/2, y0 + wardD - 62, 'WARDROBE 1', `${feetLabel(state.wardrobeWidth)} W × ${feetLabel(state.wardrobeDepth)} D`, true)}
+        ${furnitureLabel(w2X + w2W/2, y0 + wardD - 62, 'WARDROBE 2', `${feetLabel(state.wardrobeWidth)} W × ${feetLabel(state.wardrobeDepth)} D`, true)}
+        ${furnitureLabel(deskX + deskW/2, y0 + deskD - 28, 'STUDY DESK', `${feetLabel(state.deskWidth)} W × ${feetLabel(state.deskDepth)} D`, true)}
+
+        <!-- Workstation equipment -->
+        <rect class="screen" x="${chairCx - monitorW/2 - 17}" y="${equipmentY}" width="${monitorW}" height="34" rx="3" />
+        <rect class="equipment" x="${chairCx - 29}" y="${equipmentY + 35}" width="24" height="7" rx="2" />
+        <rect class="equipment" x="${chairCx - 73}" y="${equipmentY + 54}" width="105" height="28" rx="3" />
+        <g class="thin">${Array.from({length: 7}, (_,i) => `<line x1="${chairCx - 67 + i*15}" y1="${equipmentY + 57}" x2="${chairCx - 67 + i*15}" y2="${equipmentY + 79}" />`).join('')}</g>
+        <rect class="equipment" x="${chairCx + 45}" y="${equipmentY + 55}" width="26" height="30" rx="10" />
+        <g transform="translate(${chairCx + monitorW/2 + 2} ${equipmentY - 3}) rotate(12)">
+          <rect class="equipment" x="0" y="0" width="${laptopW}" height="47" rx="3" />
+          <rect class="screen" x="4" y="4" width="${laptopW - 8}" height="27" rx="2" />
+          <path class="thin" d="M4 34h${laptopW - 8}v9H4Z M${laptopW/2 - 8} 36h16v5h-16Z" />
+        </g>
+
+        <!-- Chair -->
+        <g transform="translate(${chairCx} ${chairCy})" filter="url(#shadow)">
+          <rect class="soft" x="-38" y="-36" width="76" height="58" rx="18" />
+          <path class="soft" d="M-41 16 Q0 42 41 16 L37 35 Q0 54 -37 35Z" />
+          <rect class="soft" x="-49" y="-22" width="10" height="41" rx="5" />
+          <rect class="soft" x="39" y="-22" width="10" height="41" rx="5" />
+        </g>
+
+        <!-- Bed -->
+        <g filter="url(#shadow)">
+          <rect class="bed" x="${bedX}" y="${bedY}" width="${bedW}" height="${bedH}" rx="18" />
+          <rect class="soft" x="${bedX + 12}" y="${y1 - 104}" width="${bedW/2 - 18}" height="82" rx="14" />
+          <rect class="soft" x="${bedX + bedW/2 + 6}" y="${y1 - 104}" width="${bedW/2 - 18}" height="82" rx="14" />
+          <path class="soft" d="M${bedX + 4} ${y1 - 176} Q${bedX + bedW/2} ${y1 - 210} ${bedX + bedW - 4} ${y1 - 176} L${bedX + bedW - 4} ${y1 - 128} Q${bedX + bedW/2} ${y1 - 161} ${bedX + 4} ${y1 - 128}Z" />
+          <rect class="detail" x="${bedX + 5}" y="${y1 - 16}" width="${bedW - 10}" height="12" />
+        </g>
+        ${furnitureLabel(bedX + bedW/2, bedY + bedH*.43, 'BED', `${feetLabel(state.bedWidth)} × ${feetLabel(state.bedLength)}`)}
+
+        <!-- Bedside table with wall-mounted mirror -->
+        <g filter="url(#shadow)">
+          <rect class="furniture" x="${sideX}" y="${sideY}" width="${sideW}" height="${sideH}" />
+          <line class="detail" x1="${sideX + 8}" y1="${sideY + 22}" x2="${sideX + sideW - 8}" y2="${sideY + 22}" />
+          <circle cx="${sideX + sideW/2}" cy="${sideY + 15}" r="2.5" fill="#363734" />
+          <rect class="opening" x="${sideX + 8}" y="${y1 - 7}" width="${Math.max(10, sideW - 16)}" height="9" rx="2" />
+        </g>
+        ${furnitureLabel(sideX + sideW/2, sideY + sideH/2 - 7, 'BEDSIDE', `${feetLabel(state.sideWidth)} × ${feetLabel(state.sideDepth)}`, true)}
+
+        <!-- Opening labels -->
+        <text class="room-label" x="${x0 - 58}" y="${y0 + state.balconyLength*S/2}" text-anchor="middle" transform="rotate(-90 ${x0 - 58} ${y0 + state.balconyLength*S/2})">BALCONY ${feetLabel(state.balconyLength)}</text>
+        <text class="room-label" x="${x1 + 63}" y="${(bathY1+bathY2)/2}" text-anchor="middle" transform="rotate(-90 ${x1 + 63} ${(bathY1+bathY2)/2})">BATHROOM</text>
+        <text class="room-label" x="${(entryX1+entryX2)/2}" y="${y1 + 61}" text-anchor="middle">ENTRY</text>
+
+        <!-- Overall dimensions -->
+        ${dimensionLine(x0, y0 - 54, x1, y0 - 54, feetLabel(state.roomWidth))}
+        ${dimensionLine(x1 + 108, y0, x1 + 108, y1, feetLabel(state.roomDepth), true)}
+
+        <!-- Compass: source orientation has North toward bottom -->
+        <g transform="translate(78 ${y1 - 38})">
+          <line x1="0" y1="-45" x2="0" y2="45" stroke="#222" stroke-width="3" marker-end="url(#arrow)" />
+          <line x1="-42" y1="0" x2="42" y2="0" stroke="#222" stroke-width="3" />
+          <text class="room-label" x="0" y="66" text-anchor="middle">N</text>
+          <text class="room-label" x="0" y="-55" text-anchor="middle">S</text>
+          <text class="room-label" x="-57" y="7" text-anchor="middle">W</text>
+          <text class="room-label" x="57" y="7" text-anchor="middle">E</text>
+        </g>
+
+        <!-- Entry safety clearance -->
+        ${entryClearance > 0 ? `<line class="clearance" x1="${bedX + bedW}" y1="${y1 - 174}" x2="${entryX1}" y2="${y1 - 174}" />
+          <text class="furniture-label small" x="${(bedX + bedW + entryX1)/2}" y="${y1 - 184}" text-anchor="middle">${feetLabel(entryClearance)} CLEAR</text>` : ''}
+      `;
+    }
+
+    function syncInputs() {
+      numericInputs.forEach(input => { input.value = state[input.id]; });
+    }
+
+    numericInputs.forEach(input => {
+      input.addEventListener('input', event => {
+        const id = event.currentTarget.id;
+        const value = Number(event.currentTarget.value);
+        if (!Number.isFinite(value)) return;
+        state[id] = value;
+
+        if (document.getElementById('autoFit').checked) {
+          if (id === 'wardrobeWidth') {
+            state.deskWidth = Math.max(0, state.roomWidth - state.wardrobeWidth * 2);
+          } else if (id === 'deskWidth') {
+            state.wardrobeWidth = Math.max(0, (state.roomWidth - state.deskWidth) / 2);
+          } else if (id === 'roomWidth') {
+            state.deskWidth = Math.max(0, state.roomWidth - state.wardrobeWidth * 2);
+          }
+          syncInputs();
+        }
+        render();
+      });
+    });
+
+    document.getElementById('autoFit').addEventListener('change', event => {
+      if (event.currentTarget.checked) {
+        state.deskWidth = Math.max(0, state.roomWidth - state.wardrobeWidth * 2);
+        syncInputs();
+        render();
+      }
+    });
+
+    function serializedSvg() {
+      const clone = svg.cloneNode(true);
+      clone.removeAttribute('style');
+      clone.setAttribute('width', '1120');
+      clone.setAttribute('height', '1080');
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clone)}`;
+    }
+
+    function downloadBlob(contents, type, filename) {
+      const blob = new Blob([contents], { type });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    document.getElementById('exportSvg').addEventListener('click', () => {
+      downloadBlob(serializedSvg(), 'image/svg+xml;charset=utf-8', 'bedroom-floor-plan.svg');
+    });
+
+    document.getElementById('copySvg').addEventListener('click', async event => {
+      await navigator.clipboard.writeText(serializedSvg());
+      const original = event.currentTarget.textContent;
+      event.currentTarget.textContent = 'SVG copied';
+      setTimeout(() => { event.currentTarget.textContent = original; }, 1300);
+    });
+
+    document.getElementById('exportJson').addEventListener('click', () => {
+      downloadBlob(JSON.stringify(state, null, 2), 'application/json', 'bedroom-floor-plan-dimensions.json');
+    });
+
+    document.getElementById('reset').addEventListener('click', () => {
+      Object.assign(state, DEFAULTS);
+      document.getElementById('autoFit').checked = true;
+      syncInputs();
+      render();
+    });
+
+    syncInputs();
+    render();
+  </script>
+</body>
+</html>
