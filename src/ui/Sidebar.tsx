@@ -8,6 +8,7 @@ import { Catalog } from "./Catalog";
 import { Inspector } from "./Inspector";
 import { Issues } from "./Issues";
 import { RoomList } from "./RoomList";
+import { RoomSettings } from "./RoomSettings";
 import { Summary } from "./Summary";
 
 function Section({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
@@ -39,6 +40,10 @@ export function Sidebar({ issues }: SidebarProps) {
 
       {room && (
         <>
+          <Section title="Room size & doors">
+            <RoomSettings />
+          </Section>
+
           <Section title="Add furniture">
             <Catalog />
           </Section>

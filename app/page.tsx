@@ -51,10 +51,10 @@ export default function Home() {
       <div className="col-span-2 no-print">
         <Toolbar />
       </div>
-      <div className="row-start-2 no-print">
+      <div className="row-start-2 min-h-0 no-print">
         <Sidebar issues={issues} />
       </div>
-      <div className="row-start-2 min-w-0 bg-page p-4">
+      <div className="row-start-2 min-h-0 min-w-0 bg-page p-4">
         {room ? (
           <Plan room={room} units={home.units} issueItemIds={issueItemIds} />
         ) : (

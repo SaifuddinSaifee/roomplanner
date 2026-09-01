@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Room Planner
 
-## Getting Started
+A client-only Next.js app for laying out rectangular rooms with real furniture dimensions, drag/snap/rotate placement, and fit checks (overlaps, blocked doorways, clearance zones, walkway width). See [phase1.md](phase1.md) for the product spec and [plans/plan1.md](plans/plan1.md) for the implementation plan.
 
-First, run the development server:
+## Develop
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Test, lint, build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm test    # vitest — model/geometry/snap/validation rules
+pnpm lint
+pnpm build   # static export (output: 'export'), deployable to Vercel/Netlify
+```
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/model` — schema, defaults, migration, units (integer-inch storage), geometry
+- `src/catalog` — furniture catalog and SVG symbols
+- `src/render` — the SVG plan renderer (scale, walls, openings, items, dimensions)
+- `src/interact` — drag and snap
+- `src/validate` — fit-check rules
+- `src/store` — Zustand store, undo/redo, localStorage persistence
+- `src/ui` — sidebar panels (rooms, catalog, inspector, issues, summary, toolbar)
+- `app/` — the Next.js shell and `/print` view

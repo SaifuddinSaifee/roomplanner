@@ -1,4 +1,9 @@
-import type { Item, Opening, Rect, Room } from "./types";
+import type { Item, Opening, Rect, Room, Wall } from "./types";
+
+/** Length of the given wall, in inches: north/south run along width, east/west along depth. */
+export function wallLength(room: Pick<Room, "width" | "depth">, wall: Wall): number {
+  return wall === "north" || wall === "south" ? room.width : room.depth;
+}
 
 /** Axis-aligned bounding box of an item in room-local inches, accounting for rotation. */
 export function footprint(item: Item): Rect {

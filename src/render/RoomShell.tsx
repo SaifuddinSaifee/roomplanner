@@ -1,11 +1,8 @@
+import { wallLength } from "@/src/model/geometry";
 import type { Room, Wall } from "@/src/model/types";
 import { toPxLen, toPxX, toPxY, type Scale } from "./scale";
 
 const WALL_THICKNESS = 6;
-
-function wallLength(room: Room, wall: Wall): number {
-  return wall === "north" || wall === "south" ? room.width : room.depth;
-}
 
 /** Wall endpoints as a function of position `t` along the wall, in room-local inches. */
 function wallPoint(room: Room, wall: Wall, t: number): { x: number; y: number } {
@@ -76,4 +73,4 @@ export function RoomShell({ room, scale }: RoomShellProps) {
   );
 }
 
-export { wallLength, wallPoint, wallSegments };
+export { wallPoint, wallSegments };

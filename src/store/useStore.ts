@@ -3,8 +3,9 @@ import { create } from "zustand";
 
 import { catalogEntry } from "@/src/catalog/items";
 import { makeDefaultHome } from "@/src/model/defaults";
+import { clamp, wallLength } from "@/src/model/geometry";
 import { migrate } from "@/src/model/migrate";
-import type { Home, Item, Room, RoomType, Rotation, Units } from "@/src/model/types";
+import type { Home, Item, Opening, Room, RoomType, Rotation, Units } from "@/src/model/types";
 
 const HISTORY_LIMIT = 50;
 
@@ -28,6 +29,11 @@ interface StoreState {
   duplicateRoom: (roomId: string) => void;
   deleteRoom: (roomId: string) => void;
   renameRoom: (roomId: string, name: string) => void;
+  resizeRoom: (roomId: string, patch: Partial<Pick<Room, "width" | "depth">>) => void;
+
+  addOpening: (roomId: string) => void;
+  updateOpening: (roomId: string, openingId: string, patch: Partial<Omit<Opening, "id">>) => void;
+  deleteOpening: (roomId: string, openingId: string) => void;
 
   addItem: (catalogId: string) => void;
   updateItem: (itemId: string, patch: Partial<Pick<Item, "x" | "y" | "w" | "d">>) => void;
@@ -55,6 +61,16 @@ function withRoom(home: Home, roomId: string, fn: (room: Room) => Room): Home {
   return { ...home, rooms: home.rooms.map((r) => (r.id === roomId ? fn(r) : r)) };
 }
 
+const MIN_OPENING_WIDTH = 12; // inches
+
+/** Keep an opening's offset/width within the (possibly just-resized) wall it sits on. */
+function clampOpening(opening: Opening, room: Room): Opening {
+  const length = wallLength(room, opening.wall);
+  const width = clamp(opening.width, MIN_OPENING_WIDTH, Math.max(MIN_OPENING_WIDTH, length));
+  const offset = clamp(opening.offset, 0, Math.max(0, length - width));
+  return { ...opening, width, offset };
+}
+
 export const useStore = create<StoreState>((set) => ({
   home: makeDefaultHome(),
   selectedRoomId: null,
@@ -65,7 +81,9 @@ export const useStore = create<StoreState>((set) => ({
   hydrated: false,
 
   hydrate: (home) => set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemId: null, hydrated: true }),
-  markHydrated: () => set({ hydrated: true }),
+  // Called when there's nothing in storage yet, so the initial (default) home stands —
+  // still needs a room selected, or the sidebar shows "add a room" despite one existing.
+  markHydrated: () => set((state) => ({ hydrated: true, selectedRoomId: state.selectedRoomId ?? state.home.rooms[0]?.id ?? null })),
 
   selectRoom: (roomId) => set({ selectedRoomId: roomId, selectedItemId: null }),
   selectItem: (itemId) => set({ selectedItemId: itemId }),
@@ -128,6 +146,56 @@ export const useStore = create<StoreState>((set) => ({
       past: pushHistory(state),
       future: [],
       home: withRoom(state.home, roomId, (r) => ({ ...r, name })),
+    })),
+
+  resizeRoom: (roomId, patch) =>
+    set((state) => ({
+      past: pushHistory(state),
+      future: [],
+      home: withRoom(state.home, roomId, (r) => {
+        const resized: Room = {
+          ...r,
+          width: Math.max(1, patch.width ?? r.width),
+          depth: Math.max(1, patch.depth ?? r.depth),
+        };
+        return { ...resized, openings: resized.openings.map((o) => clampOpening(o, resized)) };
+      }),
+    })),
+
+  addOpening: (roomId) =>
+    set((state) => {
+      const room = currentRoom(state.home, roomId);
+      if (!room) return {};
+      const opening: Opening = clampOpening(
+        { id: nanoid(8), wall: "south", offset: 0, width: 30, kind: "door" },
+        room
+      );
+      return {
+        past: pushHistory(state),
+        future: [],
+        home: withRoom(state.home, roomId, (r) => ({ ...r, openings: [...r.openings, opening] })),
+      };
+    }),
+
+  updateOpening: (roomId, openingId, patch) =>
+    set((state) => {
+      const room = currentRoom(state.home, roomId);
+      if (!room) return {};
+      return {
+        past: pushHistory(state),
+        future: [],
+        home: withRoom(state.home, roomId, (r) => ({
+          ...r,
+          openings: r.openings.map((o) => (o.id === openingId ? clampOpening({ ...o, ...patch }, r) : o)),
+        })),
+      };
+    }),
+
+  deleteOpening: (roomId, openingId) =>
+    set((state) => ({
+      past: pushHistory(state),
+      future: [],
+      home: withRoom(state.home, roomId, (r) => ({ ...r, openings: r.openings.filter((o) => o.id !== openingId) })),
     })),
 
   addItem: (catalogId) =>
