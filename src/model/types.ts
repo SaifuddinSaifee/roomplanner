@@ -5,7 +5,7 @@ export type Units = "ft" | "mm";
 
 export type Wall = "north" | "east" | "south" | "west";
 
-export type OpeningKind = "door" | "sliding" | "opening";
+export type OpeningKind = "door" | "sliding" | "window" | "opening";
 
 export type RoomType =
   | "hall"

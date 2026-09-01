@@ -13,8 +13,9 @@ const WALLS: { value: Wall; label: string }[] = [
 
 const KINDS: { value: OpeningKind; label: string }[] = [
   { value: "door", label: "Door" },
-  { value: "sliding", label: "Sliding" },
-  { value: "opening", label: "Opening" },
+  { value: "sliding", label: "Sliding door" },
+  { value: "window", label: "Window" },
+  { value: "opening", label: "Archway (no door)" },
 ];
 
 function OpeningRow({ room, opening }: { room: Room; opening: Opening }) {
@@ -101,9 +102,9 @@ export function RoomSettings() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Doors &amp; openings</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Doors &amp; windows</p>
         {room.openings.length === 0 && (
-          <p className="text-xs text-muted">No doors or openings yet.</p>
+          <p className="text-xs text-muted">No doors or windows yet.</p>
         )}
         {room.openings.map((opening) => (
           <OpeningRow key={opening.id} room={room} opening={opening} />
@@ -112,8 +113,11 @@ export function RoomSettings() {
           className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm font-semibold hover:bg-accent-soft"
           onClick={() => addOpening(room.id)}
         >
-          Add door
+          Add opening
         </button>
+        <p className="text-[11px] text-muted">
+          Adds a door — use the second dropdown on it to change the type to sliding door, window, or archway.
+        </p>
       </div>
     </div>
   );

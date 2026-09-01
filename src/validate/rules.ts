@@ -130,7 +130,10 @@ function checkClearance(room: Room): Issue[] {
 
 /** Rasterize free floor on a grid and BFS between openings; flag when doors aren't mutually reachable through a corridor at least WALKWAY_MIN_WIDTH wide. */
 function checkWalkway(room: Room): Issue[] {
-  if (room.openings.length < 2) return [];
+  // A window isn't something you walk through, so it doesn't count as an
+  // endpoint a walkway needs to reach.
+  const walkableOpenings = room.openings.filter((o) => o.kind !== "window");
+  if (walkableOpenings.length < 2) return [];
 
   const cols = Math.max(1, Math.floor(room.width / GRID_STEP));
   const rows = Math.max(1, Math.floor(room.depth / GRID_STEP));
@@ -194,19 +197,19 @@ function checkWalkway(room: Room): Issue[] {
   }
 
   const issues: Issue[] = [];
-  for (let i = 0; i < room.openings.length; i++) {
-    const startCells = cellsForOpening(room.openings[i]);
+  for (let i = 0; i < walkableOpenings.length; i++) {
+    const startCells = cellsForOpening(walkableOpenings[i]);
     if (startCells.length === 0) continue;
     const reach = reachable(startCells);
-    for (let j = i + 1; j < room.openings.length; j++) {
-      const targetCells = cellsForOpening(room.openings[j]);
+    for (let j = i + 1; j < walkableOpenings.length; j++) {
+      const targetCells = cellsForOpening(walkableOpenings[j]);
       const connected = targetCells.some(([x, y]) => reach.has(y * cols + x));
       if (!connected && targetCells.length > 0) {
         issues.push({
-          id: `walkway-${room.openings[i].id}-${room.openings[j].id}`,
+          id: `walkway-${walkableOpenings[i].id}-${walkableOpenings[j].id}`,
           ruleId: "walkway",
           severity: "warning",
-          message: `No ${WALKWAY_MIN_WIDTH / 12}ft-wide walkway between the ${room.openings[i].wall} and ${room.openings[j].wall} openings.`,
+          message: `No ${WALKWAY_MIN_WIDTH / 12}ft-wide walkway between the ${walkableOpenings[i].wall} and ${walkableOpenings[j].wall} openings.`,
           itemIds: [],
         });
       }

@@ -28,6 +28,7 @@ const PLAN_DEFS = (
       .detail { stroke:#262827; stroke-width:2; fill:none; }
       .swing { stroke:#8b8578; stroke-width:1.25; fill:none; stroke-dasharray:4 3; }
       .slider { stroke:#262827; stroke-width:2; fill:none; }
+      .window { stroke:#5b7fa6; stroke-width:2.5; fill:none; }
       .dim { stroke:#242624; stroke-width:1.25; }
       .tick { stroke:#242624; stroke-width:1.25; }
       .dim-text { fill:#222422; font:600 11px Georgia,serif; }

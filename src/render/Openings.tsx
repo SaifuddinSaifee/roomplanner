@@ -36,6 +36,20 @@ export function Openings({ room, scale }: OpeningsProps) {
           );
         }
 
+        if (opening.kind === "window") {
+          // A line across the gap for the glass, plus short perpendicular
+          // jamb ticks at each end — distinct from a sliding door's double
+          // line and a hinged door's swing arc.
+          const tick = 5;
+          return (
+            <g key={opening.id} className="opening-window">
+              <line x1={x1} y1={y1} x2={x2} y2={y2} className="window" />
+              <line x1={x1 - nx * tick} y1={y1 - ny * tick} x2={x1 + nx * tick} y2={y1 + ny * tick} className="tick" />
+              <line x1={x2 - nx * tick} y1={y2 - ny * tick} x2={x2 + nx * tick} y2={y2 + ny * tick} className="tick" />
+            </g>
+          );
+        }
+
         if (opening.kind === "sliding") {
           const offset = 3;
           const ox1 = x1 + nx * offset;

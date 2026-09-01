@@ -110,4 +110,20 @@ describe("validateRoom", () => {
     const issues = validateRoom(room);
     expect(issues.some((i) => i.ruleId === "walkway")).toBe(false);
   });
+
+  it("does not require a walkway to or between windows", () => {
+    // A single door plus a window shouldn't trigger "no walkway" — a window
+    // isn't a place you walk through, so it's not a walkway endpoint.
+    const room = makeRoom({
+      width: 120,
+      depth: 120,
+      openings: [
+        { id: "o1", wall: "west", offset: 10, width: 30, kind: "door" },
+        { id: "o2", wall: "east", offset: 10, width: 30, kind: "window" },
+      ],
+      items: [],
+    });
+    const issues = validateRoom(room);
+    expect(issues.some((i) => i.ruleId === "walkway")).toBe(false);
+  });
 });

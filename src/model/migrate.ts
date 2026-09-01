@@ -14,7 +14,8 @@ function coerceOpening(raw: unknown, index: number): Opening | null {
   const offset = Number(raw.offset);
   const width = Number(raw.width);
   if (!wall || !Number.isFinite(offset) || !Number.isFinite(width) || width <= 0) return null;
-  const kind = raw.kind === "door" || raw.kind === "sliding" || raw.kind === "opening" ? raw.kind : "door";
+  const validKinds = ["door", "sliding", "window", "opening"];
+  const kind = validKinds.includes(raw.kind as string) ? (raw.kind as Opening["kind"]) : "door";
   return {
     id: typeof raw.id === "string" ? raw.id : `opening-${index}`,
     wall,
