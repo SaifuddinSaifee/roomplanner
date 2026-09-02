@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { Plan } from "@/src/render/Plan";
 import { DEFAULT_PROJECT_ID, loadHome } from "@/src/store/persist";
 import { useStore } from "@/src/store/useStore";
 import { validateRoom } from "@/src/validate/rules";
 
-export default function PrintPage() {
+function PrintPageContent() {
   const home = useStore((s) => s.home);
   const hydrated = useStore((s) => s.hydrated);
   const hydrate = useStore((s) => s.hydrate);
   const markHydrated = useStore((s) => s.markHydrated);
+  const hideRemarks = useSearchParams().get("hideRemarks") === "1";
 
   useEffect(() => {
     const stored = loadHome(DEFAULT_PROJECT_ID);
@@ -43,7 +45,7 @@ export default function PrintPage() {
             <div className="min-h-0 flex-1">
               <Plan room={room} units={home.units} issueItemIds={issueItemIds} interactive={false} />
             </div>
-            {issues.length > 0 && (
+            {!hideRemarks && issues.length > 0 && (
               <ul className="mt-2 text-xs text-warn">
                 {issues.map((issue) => (
                   <li key={issue.id}>{issue.message}</li>
@@ -54,5 +56,13 @@ export default function PrintPage() {
         );
       })}
     </div>
+  );
+}
+
+export default function PrintPage() {
+  return (
+    <Suspense fallback={null}>
+      <PrintPageContent />
+    </Suspense>
   );
 }

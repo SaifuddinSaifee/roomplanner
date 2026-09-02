@@ -4,10 +4,35 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 
-import { copyPlanPngToClipboard, copyPlanSvgToClipboard, downloadBlob, serializePlanSvg } from "@/src/store/download";
+import {
+  copyPlanJpgToClipboard,
+  copyPlanPngToClipboard,
+  copyPlanSvgToClipboard,
+  copyTextToClipboard,
+  downloadBlob,
+  downloadFileBlob,
+  planSvgToPngBlob,
+  serializePlanSvg,
+} from "@/src/store/download";
 import { useStore } from "@/src/store/useStore";
+import { Dropdown, ToolbarMenu } from "@/src/ui/ToolbarMenu";
 
-type CopyStatus = { target: "svg" | "png"; ok: boolean };
+type CopyFormat = "png" | "jpg" | "svg" | "json";
+type ExportFormat = "png" | "svg" | "json" | "png-2x" | "png-4x";
+
+/** Print-view toggles, round-tripped to `/print` as query params since it opens in a separate tab/document. */
+interface PrintOptions {
+  hideRemarks: boolean;
+}
+
+const DEFAULT_PRINT_OPTIONS: PrintOptions = { hideRemarks: false };
+
+function printHref(options: PrintOptions): string {
+  const params = new URLSearchParams();
+  if (options.hideRemarks) params.set("hideRemarks", "1");
+  const qs = params.toString();
+  return qs ? `/print?${qs}` : "/print";
+}
 
 export function Toolbar() {
   const home = useStore((s) => s.home);
@@ -22,33 +47,56 @@ export function Toolbar() {
   const selectedRoomId = useStore((s) => s.selectedRoomId);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [copyStatus, setCopyStatus] = useState<CopyStatus | null>(null);
-  const copyStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [printOptions, setPrintOptions] = useState<PrintOptions>(DEFAULT_PRINT_OPTIONS);
 
-  function flashCopyStatus(status: CopyStatus) {
-    if (copyStatusTimer.current) clearTimeout(copyStatusTimer.current);
-    setCopyStatus(status);
-    copyStatusTimer.current = setTimeout(() => setCopyStatus(null), 1500);
+  function flashStatus(message: string) {
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+    setStatus(message);
+    statusTimer.current = setTimeout(() => setStatus(null), 1800);
   }
 
-  async function copySvg() {
-    flashCopyStatus({ target: "svg", ok: await copyPlanSvgToClipboard() });
-  }
-
-  async function copyPng() {
-    flashCopyStatus({ target: "png", ok: await copyPlanPngToClipboard() });
-  }
-
-  function exportJson() {
-    downloadBlob(JSON.stringify(home, null, 2), "application/json", "roomplanner-project.json");
-  }
-
-  function exportSvg() {
-    const svg = serializePlanSvg();
-    if (!svg) return;
+  function roomFilename(tail: string): string {
     const room = home.rooms.find((r) => r.id === selectedRoomId);
-    const filename = `${room?.name.toLowerCase().replace(/\s+/g, "-") ?? "room"}.svg`;
-    downloadBlob(svg, "image/svg+xml;charset=utf-8", filename);
+    const base = room?.name.toLowerCase().replace(/\s+/g, "-") ?? "room";
+    return `${base}${tail}`;
+  }
+
+  async function handleCopy(format: CopyFormat) {
+    const ok =
+      format === "png"
+        ? await copyPlanPngToClipboard()
+        : format === "jpg"
+          ? await copyPlanJpgToClipboard()
+          : format === "svg"
+            ? await copyPlanSvgToClipboard()
+            : await copyTextToClipboard(JSON.stringify(home, null, 2));
+    flashStatus(ok ? `Copied ${format.toUpperCase()}` : `Copy ${format.toUpperCase()} failed`);
+  }
+
+  async function handleExport(format: ExportFormat) {
+    if (format === "json") {
+      downloadBlob(JSON.stringify(home, null, 2), "application/json", "roomplanner-project.json");
+      return;
+    }
+    if (format === "svg") {
+      const svg = serializePlanSvg();
+      if (!svg) {
+        flashStatus("Nothing to export");
+        return;
+      }
+      downloadBlob(svg, "image/svg+xml;charset=utf-8", roomFilename(".svg"));
+      return;
+    }
+    const scale = format === "png-4x" ? 4 : format === "png-2x" ? 2 : 1;
+    const suffix = format === "png-4x" ? "@4x" : format === "png-2x" ? "@2x" : "";
+    const blob = await planSvgToPngBlob(scale);
+    if (!blob) {
+      flashStatus("Nothing to export");
+      return;
+    }
+    downloadFileBlob(blob, roomFilename(`${suffix}.png`));
   }
 
   function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
@@ -81,46 +129,69 @@ export function Toolbar() {
         </button>
       </div>
 
-      <button
-        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
-        disabled={!canUndo}
-        onClick={undo}
-      >
-        Undo
-      </button>
-      <button
-        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
-        disabled={!canRedo}
-        onClick={redo}
-      >
-        Redo
-      </button>
-
       <div className="mx-1 h-5 w-px bg-line" />
 
-      <button className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft" onClick={exportSvg}>
-        Export SVG
-      </button>
-      <button className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft" onClick={exportJson}>
-        Export JSON
-      </button>
+      <ToolbarMenu
+        label="Copy"
+        sections={[
+          {
+            items: [
+              { key: "png", label: "PNG", onSelect: () => handleCopy("png") },
+              { key: "jpg", label: "JPG", onSelect: () => handleCopy("jpg") },
+              { key: "svg", label: "SVG", onSelect: () => handleCopy("svg") },
+              { key: "json", label: "JSON", onSelect: () => handleCopy("json") },
+            ],
+          },
+        ]}
+      />
 
-      <div className="mx-1 h-5 w-px bg-line" />
+      <Dropdown label="Print">
+        {(close) => (
+          <div className="w-56">
+            <div className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-muted">Options</div>
+            <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs font-medium text-ink hover:bg-accent-soft">
+              <input
+                type="checkbox"
+                checked={printOptions.hideRemarks}
+                onChange={(e) => setPrintOptions((prev) => ({ ...prev, hideRemarks: e.target.checked }))}
+                className="h-3.5 w-3.5 rounded border-line accent-accent"
+              />
+              Remove remarks
+            </label>
+            <div className="mt-1 border-t border-line pt-1">
+              <Link
+                href={printHref(printOptions)}
+                target="_blank"
+                onClick={close}
+                className="block px-3 py-1.5 text-left text-xs font-semibold text-accent hover:bg-accent-soft"
+              >
+                Open print view →
+              </Link>
+            </div>
+          </div>
+        )}
+      </Dropdown>
 
-      <button
-        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
-        title="Copy the plan as SVG markup"
-        onClick={copySvg}
-      >
-        {copyStatus?.target === "svg" ? (copyStatus.ok ? "Copied!" : "Copy failed") : "Copy SVG"}
-      </button>
-      <button
-        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
-        title="Copy the plan as a PNG image"
-        onClick={copyPng}
-      >
-        {copyStatus?.target === "png" ? (copyStatus.ok ? "Copied!" : "Copy failed") : "Copy PNG"}
-      </button>
+      <ToolbarMenu
+        label="Export"
+        sections={[
+          {
+            items: [
+              { key: "png", label: "PNG", onSelect: () => handleExport("png") },
+              { key: "svg", label: "SVG", onSelect: () => handleExport("svg") },
+              { key: "json", label: "JSON", onSelect: () => handleExport("json") },
+            ],
+          },
+          {
+            heading: "High-quality PNG",
+            items: [
+              { key: "png-2x", label: "2× original size", onSelect: () => handleExport("png-2x") },
+              { key: "png-4x", label: "4× original size", onSelect: () => handleExport("png-4x") },
+            ],
+          },
+        ]}
+      />
+
       <button
         className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
         onClick={() => fileInputRef.current?.click()}
@@ -128,15 +199,27 @@ export function Toolbar() {
         Import JSON
       </button>
       <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
-      <Link
-        href="/print"
-        target="_blank"
-        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
-      >
-        Print
-      </Link>
 
-      <div className="ml-auto">
+      {status && <span className="text-xs font-medium text-muted">{status}</span>}
+
+      <div className="ml-auto flex items-center gap-1.5">
+        <button
+          className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+          disabled={!canUndo}
+          onClick={undo}
+        >
+          Undo
+        </button>
+        <button
+          className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+          disabled={!canRedo}
+          onClick={redo}
+        >
+          Redo
+        </button>
+
+        <div className="mx-1 h-5 w-px bg-line" />
+
         <button
           className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10"
           onClick={() => {
