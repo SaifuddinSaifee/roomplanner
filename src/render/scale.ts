@@ -1,3 +1,4 @@
+import { roomContentBounds } from "@/src/model/geometry";
 import type { Room } from "@/src/model/types";
 
 export interface Scale {
@@ -10,13 +11,15 @@ export interface Scale {
 export const PLAN_MARGIN_IN = 54;
 
 /**
- * Compute a scale and origin that fits `room` inside a `viewportWidth` x
+ * Compute a scale and origin that fits `room` — its wall rectangle *and*
+ * every item's footprint, since items can be dragged past the walls (loft
+ * storage mounted above/beside the room, say) — inside a `viewportWidth` x
  * `viewportHeight` px viewport, with room to spare for dimension lines.
  * Replaces the old fixed `S = 72`, `x0 = 214`, `y0 = 112` constants — a 20ft
  * hall now fits the same way a 9ft bedroom does.
  */
 export function computeScale(
-  room: Pick<Room, "width" | "depth">,
+  room: Pick<Room, "width" | "depth" | "items">,
   viewportWidth: number,
   viewportHeight: number,
   marginIn: number = PLAN_MARGIN_IN
@@ -24,12 +27,15 @@ export function computeScale(
   if (viewportWidth <= 0 || viewportHeight <= 0) {
     return { pxPerInch: 1, originX: marginIn, originY: marginIn };
   }
-  const totalW = room.width + marginIn * 2;
-  const totalH = room.depth + marginIn * 2;
+  const bounds = roomContentBounds(room);
+  const totalW = bounds.w + marginIn * 2;
+  const totalH = bounds.h + marginIn * 2;
   const pxPerInch = Math.max(0.001, Math.min(viewportWidth / totalW, viewportHeight / totalH));
 
-  const originX = (viewportWidth - room.width * pxPerInch) / 2;
-  const originY = (viewportHeight - room.depth * pxPerInch) / 2;
+  const centerX = bounds.x + bounds.w / 2;
+  const centerY = bounds.y + bounds.h / 2;
+  const originX = viewportWidth / 2 - centerX * pxPerInch;
+  const originY = viewportHeight / 2 - centerY * pxPerInch;
 
   return { pxPerInch, originX, originY };
 }
@@ -52,16 +58,17 @@ export const DEFAULT_VIEW: ViewState = { zoom: 1, panX: 0, panY: 0 };
  * offset added after re-centering, so it reads the same at any zoom level.
  */
 export function computeViewScale(
-  room: Pick<Room, "width" | "depth">,
+  room: Pick<Room, "width" | "depth" | "items">,
   viewportWidth: number,
   viewportHeight: number,
   view: ViewState,
   marginIn: number = PLAN_MARGIN_IN
 ): Scale {
   const fit = computeScale(room, viewportWidth, viewportHeight, marginIn);
+  const bounds = roomContentBounds(room);
   const pxPerInch = fit.pxPerInch * view.zoom;
-  const originX = viewportWidth / 2 - (room.width / 2) * pxPerInch + view.panX;
-  const originY = viewportHeight / 2 - (room.depth / 2) * pxPerInch + view.panY;
+  const originX = viewportWidth / 2 - (bounds.x + bounds.w / 2) * pxPerInch + view.panX;
+  const originY = viewportHeight / 2 - (bounds.y + bounds.h / 2) * pxPerInch + view.panY;
   return { pxPerInch, originX, originY };
 }
 

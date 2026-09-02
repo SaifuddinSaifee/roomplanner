@@ -15,6 +15,27 @@ export function footprint(item: Item): Rect {
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
+/**
+ * Bounding box, in room-local inches, of the room rectangle plus every
+ * item's footprint — items are draggable past the walls (e.g. loft storage
+ * mounted above/beside the room), so the room's own width/depth alone can
+ * undersize the area a view needs to fit without clipping.
+ */
+export function roomContentBounds(room: Pick<Room, "width" | "depth" | "items">): Rect {
+  let minX = 0;
+  let minY = 0;
+  let maxX = room.width;
+  let maxY = room.depth;
+  for (const item of room.items) {
+    const fp = footprint(item);
+    minX = Math.min(minX, fp.x);
+    minY = Math.min(minY, fp.y);
+    maxX = Math.max(maxX, fp.x + fp.w);
+    maxY = Math.max(maxY, fp.y + fp.h);
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 export function rectsOverlap(a: Rect, b: Rect, epsilon = 0): boolean {
   return (
     a.x + a.w > b.x + epsilon &&

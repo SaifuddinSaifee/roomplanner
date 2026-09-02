@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeScale, computeViewScale, DEFAULT_VIEW } from "./scale";
 
-const room = { width: 120, depth: 138 };
+const room = { width: 120, depth: 138, items: [] };
 
 describe("computeViewScale", () => {
   it("matches the auto-fit scale when zoom is 1 and pan is 0", () => {

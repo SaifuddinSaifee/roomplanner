@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { useItemDrag } from "@/src/interact/useDrag";
-import { clamp } from "@/src/model/geometry";
+import { clamp, roomContentBounds } from "@/src/model/geometry";
 import type { Room, Units } from "@/src/model/types";
 import { useStore } from "@/src/store/useStore";
 import { Compass } from "./Compass";
@@ -170,9 +170,10 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
         const inchesX = (px - oldScale.originX) / oldScale.pxPerInch;
         const inchesY = (py - oldScale.originY) / oldScale.pxPerInch;
 
+        const bounds = roomContentBounds(room);
         const newPxPerInch = fit.pxPerInch * newZoom;
-        const baseOriginX = viewport.width / 2 - (room.width / 2) * newPxPerInch;
-        const baseOriginY = viewport.height / 2 - (room.depth / 2) * newPxPerInch;
+        const baseOriginX = viewport.width / 2 - (bounds.x + bounds.w / 2) * newPxPerInch;
+        const baseOriginY = viewport.height / 2 - (bounds.y + bounds.h / 2) * newPxPerInch;
         return {
           zoom: newZoom,
           panX: px - baseOriginX - inchesX * newPxPerInch,

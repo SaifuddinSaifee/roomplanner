@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearanceRect, footprint, rectInside, rectsOverlap } from "./geometry";
+import { clearanceRect, footprint, rectInside, rectsOverlap, roomContentBounds } from "./geometry";
 import type { Item } from "./types";
 
 function makeItem(overrides: Partial<Item> = {}): Item {
@@ -29,6 +29,32 @@ describe("footprint", () => {
     const fp0 = footprint(makeItem({ rot: 0 }));
     const fp180 = footprint(makeItem({ rot: 180 }));
     expect(fp180).toEqual(fp0);
+  });
+});
+
+describe("roomContentBounds", () => {
+  const room = { width: 120, depth: 90 };
+
+  it("matches the room rectangle when every item sits inside it", () => {
+    const items = [makeItem({ x: 10, y: 10, w: 30, d: 24 })];
+    expect(roomContentBounds({ ...room, items })).toEqual({ x: 0, y: 0, w: 120, h: 90 });
+  });
+
+  it("expands to include an item placed outside the room, e.g. loft storage above the top wall", () => {
+    const items = [makeItem({ x: 20, y: -84, w: 40, d: 84 })];
+    expect(roomContentBounds({ ...room, items })).toEqual({ x: 0, y: -84, w: 120, h: 174 });
+  });
+
+  it("unions bounds across multiple out-of-bounds items on different sides", () => {
+    const items = [
+      makeItem({ id: "left", x: -30, y: 0, w: 30, d: 90 }),
+      makeItem({ id: "right", x: 130, y: 0, w: 20, d: 90 }),
+    ];
+    expect(roomContentBounds({ ...room, items })).toEqual({ x: -30, y: 0, w: 180, h: 90 });
+  });
+
+  it("returns the bare room rectangle when there are no items", () => {
+    expect(roomContentBounds({ ...room, items: [] })).toEqual({ x: 0, y: 0, w: 120, h: 90 });
   });
 });
 
