@@ -7,7 +7,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 **Columns**
 
 | Column | Meaning |
-|---|---|
+| --- | --- |
 | Default W × D | Width × depth an item is placed at by default |
 | Min W × D | Smallest footprint the item can be resized down to (only relevant if resizable) |
 | Resizable | Whether the user can drag-resize the footprint |
@@ -18,7 +18,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Sleeping (8 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `bed_single` | Single bed | 39 × 75 | 36 × 72 | Yes | wall | 24 |
 | `bed_double` | Double bed | 54 × 75 | 48 × 72 | Yes | wall | 24 |
 | `bed_queen` | Queen bed | 60 × 80 | 54 × 76 | Yes | wall | 30 |
@@ -31,7 +31,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Storage (8 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `wardrobe` | Wardrobe | 30 × 24 | 18 × 18 | Yes | wall | 30 |
 | `chest_drawers` | Chest of drawers | 32 × 18 | 18 × 14 | Yes | wall | 24 |
 | `bookshelf` | Bookshelf | 30 × 12 | 18 × 10 | Yes | wall | 18 |
@@ -44,7 +44,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Living (13 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `sofa_3` | 3-seat sofa | 78 × 34 | 60 × 30 | Yes | wall | 30 |
 | `sofa_2` | 2-seat sofa | 58 × 34 | 48 × 30 | Yes | wall | 30 |
 | `armchair` | Armchair | 32 × 32 | 26 × 26 | Yes | free | 24 |
@@ -62,7 +62,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Work (4 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `study_desk` | Study desk | 48 × 24 | 30 × 18 | Yes | wall | 30 |
 | `office_chair` | Office chair | 22 × 22 | 18 × 18 | No | free | 0 |
 | `standing_desk` *(new)* | Standing desk | 48 × 28 | 36 × 22 | Yes | wall | 30 |
@@ -71,7 +71,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Dining (6 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `dining_2` *(new)* | 2-seat table | 28 × 28 | 24 × 24 | Yes | free | 24 |
 | `dining_4` | 4-seat table | 36 × 36 | 30 × 30 | Yes | free | 30 |
 | `dining_6` | 6-seat table | 72 × 36 | 60 × 32 | Yes | free | 30 |
@@ -82,7 +82,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Kitchen (7 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `counter_run` | Counter run | 72 × 24 | 24 × 22 | Yes | wall | 36 |
 | `fridge` | Fridge | 30 × 30 | 24 × 24 | No | wall | 30 |
 | `sink` | Sink | 24 × 22 | 18 × 18 | Yes | wall | 24 |
@@ -94,7 +94,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Bathroom (6 items)
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `wc` | WC | 15 × 28 | 14 × 24 | No | wall | 18 |
 | `basin` | Basin | 20 × 18 | 16 × 14 | Yes | wall | 18 |
 | `shower_tray` | Shower tray | 36 × 36 | 30 × 30 | Yes | corner | 24 |
@@ -105,7 +105,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Lighting (7 items) — *new category*
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `floor_lamp` | Floor lamp | 14 × 14 | 10 × 10 | No | free | 6 |
 | `floor_lamp_arc` | Arc floor lamp | 40 × 14 | 30 × 10 | Yes | free | 12 |
 | `iron_floor_lamp` *(iron)* | Iron floor lamp | 12 × 12 | 10 × 10 | No | free | 6 |
@@ -117,7 +117,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Outdoor (5 items) — *new category*
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `patio_table_iron` *(iron)* | Iron patio table | 36 × 36 | 30 × 30 | Yes | free | 24 |
 | `patio_chair_iron` *(iron)* | Iron patio chair | 20 × 20 | 16 × 16 | No | free | 0 |
 | `outdoor_sofa` | Outdoor sofa | 72 × 32 | 60 × 28 | Yes | wall | 30 |
@@ -127,7 +127,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Entryway (4 items) — *new category*
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `console_table` | Console table | 42 × 14 | 30 × 12 | Yes | wall | 18 |
 | `console_table_iron` *(iron)* | Iron console table | 40 × 14 | 30 × 12 | Yes | wall | 18 |
 | `coat_rack` | Coat rack | 16 × 16 | 12 × 12 | No | free | 12 |
@@ -136,7 +136,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Kids & Nursery (4 items) — *new category*
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
-|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- |
 | `crib` | Crib | 30 × 54 | 28 × 52 | No | wall | 24 |
 | `kids_bed` | Kids bed | 39 × 75 | 36 × 72 | Yes | wall | 24 |
 | `changing_table` | Changing table | 34 × 18 | 24 × 16 | Yes | wall | 24 |
