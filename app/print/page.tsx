@@ -33,7 +33,10 @@ function PrintPageContent() {
     <div className="bg-white">
       {home.rooms.map((room) => {
         const issues = issuesByRoom[room.id] ?? [];
-        const issueItemIds = new Set(issues.flatMap((i) => i.itemIds));
+        // "Remove remarks" hides both the issue list below the plan and the
+        // red outlines it explains — leaving the outlines would be a red
+        // flag with no caption.
+        const issueItemIds = hideRemarks ? new Set<string>() : new Set(issues.flatMap((i) => i.itemIds));
         return (
           <section key={room.id} className="print-page flex h-[95vh] w-full flex-col p-6">
             <header className="mb-2 flex items-baseline justify-between">
