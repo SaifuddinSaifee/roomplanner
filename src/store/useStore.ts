@@ -5,6 +5,7 @@ import { catalogEntry } from "@/src/catalog/items";
 import { makeDefaultHome } from "@/src/model/defaults";
 import { clamp, wallLength } from "@/src/model/geometry";
 import { migrate } from "@/src/model/migrate";
+import { makeRoomId } from "@/src/model/slug";
 import type { Home, Item, Opening, Room, RoomType, Rotation, Units } from "@/src/model/types";
 
 const HISTORY_LIMIT = 50;
@@ -120,7 +121,7 @@ export const useStore = create<StoreState>((set) => ({
 
   addRoom: (name, type) =>
     set((state) => {
-      const room: Room = { id: nanoid(8), name, type, width: 120, depth: 120, openings: [], items: [] };
+      const room: Room = { id: makeRoomId(), name, type, width: 120, depth: 120, openings: [], items: [] };
       return {
         past: pushHistory(state),
         future: [],
@@ -136,7 +137,7 @@ export const useStore = create<StoreState>((set) => ({
       if (!room) return {};
       const clone: Room = {
         ...room,
-        id: nanoid(8),
+        id: makeRoomId(),
         name: `${room.name} copy`,
         openings: room.openings.map((o) => ({ ...o, id: nanoid(8) })),
         items: room.items.map((item) => ({ ...item, id: nanoid(8) })),
