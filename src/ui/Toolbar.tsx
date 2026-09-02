@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 
-import { downloadBlob, serializePlanSvg } from "@/src/store/download";
+import { copyPlanPngToClipboard, copyPlanSvgToClipboard, downloadBlob, serializePlanSvg } from "@/src/store/download";
 import { useStore } from "@/src/store/useStore";
+
+type CopyStatus = { target: "svg" | "png"; ok: boolean };
 
 export function Toolbar() {
   const home = useStore((s) => s.home);
@@ -20,6 +22,22 @@ export function Toolbar() {
   const selectedRoomId = useStore((s) => s.selectedRoomId);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copyStatus, setCopyStatus] = useState<CopyStatus | null>(null);
+  const copyStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function flashCopyStatus(status: CopyStatus) {
+    if (copyStatusTimer.current) clearTimeout(copyStatusTimer.current);
+    setCopyStatus(status);
+    copyStatusTimer.current = setTimeout(() => setCopyStatus(null), 1500);
+  }
+
+  async function copySvg() {
+    flashCopyStatus({ target: "svg", ok: await copyPlanSvgToClipboard() });
+  }
+
+  async function copyPng() {
+    flashCopyStatus({ target: "png", ok: await copyPlanPngToClipboard() });
+  }
 
   function exportJson() {
     downloadBlob(JSON.stringify(home, null, 2), "application/json", "roomplanner-project.json");
@@ -85,6 +103,23 @@ export function Toolbar() {
       </button>
       <button className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft" onClick={exportJson}>
         Export JSON
+      </button>
+
+      <div className="mx-1 h-5 w-px bg-line" />
+
+      <button
+        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
+        title="Copy the plan as SVG markup"
+        onClick={copySvg}
+      >
+        {copyStatus?.target === "svg" ? (copyStatus.ok ? "Copied!" : "Copy failed") : "Copy SVG"}
+      </button>
+      <button
+        className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
+        title="Copy the plan as a PNG image"
+        onClick={copyPng}
+      >
+        {copyStatus?.target === "png" ? (copyStatus.ok ? "Copied!" : "Copy failed") : "Copy PNG"}
       </button>
       <button
         className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs font-semibold hover:bg-accent-soft"
