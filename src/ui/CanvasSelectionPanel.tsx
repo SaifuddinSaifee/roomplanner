@@ -13,21 +13,23 @@ import { ItemFields } from "./ItemFields";
  */
 export function CanvasSelectionPanel() {
   const selectedRoomId = useStore((s) => s.selectedRoomId);
-  const selectedItemId = useStore((s) => s.selectedItemId);
+  const selectedItemIds = useStore((s) => s.selectedItemIds);
   const rooms = useStore((s) => s.home.rooms);
 
   const room = rooms.find((r) => r.id === selectedRoomId);
-  const item = room?.items.find((i) => i.id === selectedItemId);
+  const items = room?.items.filter((i) => selectedItemIds.includes(i.id)) ?? [];
 
-  if (!room || !item) return null;
+  if (!room || items.length === 0) return null;
+
+  const title = items.length === 1 ? "Selected item" : `Selected items (${items.length})`;
 
   return (
     <div className="pointer-events-none absolute right-4 top-4 z-10 w-[280px]">
       <Expander
-        title="Selected item"
+        title={title}
         className="pointer-events-auto overflow-hidden rounded-xl border border-line bg-white/95 shadow-lg backdrop-blur"
       >
-        <ItemFields room={room} item={item} />
+        <ItemFields room={room} items={items} />
       </Expander>
     </div>
   );

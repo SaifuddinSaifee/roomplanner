@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { useItemDrag } from "@/src/interact/useDrag";
 import type { Room, Units } from "@/src/model/types";
@@ -49,10 +50,16 @@ export function Plan({ room, units, issueItemIds }: PlanProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 800, height: 600 });
 
-  const selectedItemId = useStore((s) => s.selectedItemId);
+  const selectedItemIds = useStore((s) => s.selectedItemIds);
   const selectItem = useStore((s) => s.selectItem);
-  const deleteItem = useStore((s) => s.deleteItem);
-  const rotateItem = useStore((s) => s.rotateItem);
+  const toggleItemSelection = useStore((s) => s.toggleItemSelection);
+  const deleteSelectedItems = useStore((s) => s.deleteSelectedItems);
+  const rotateSelectedItems = useStore((s) => s.rotateSelectedItems);
+  const copySelection = useStore((s) => s.copySelection);
+  const pasteClipboard = useStore((s) => s.pasteClipboard);
+  const duplicateSelection = useStore((s) => s.duplicateSelection);
+
+  const selectedSet = useMemo(() => new Set(selectedItemIds), [selectedItemIds]);
 
   const drag = useItemDrag(svgRef);
 
@@ -71,21 +78,34 @@ export function Plan({ room, units, issueItemIds }: PlanProps) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (!selectedItemId) return;
       const target = e.target as HTMLElement | null;
       if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
 
-      if (e.key === "Delete" || e.key === "Backspace") {
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && e.key.toLowerCase() === "c") {
+        if (selectedItemIds.length === 0) return;
         e.preventDefault();
-        deleteItem(selectedItemId);
-      } else if (e.key === "r" || e.key === "R") {
+        copySelection();
+      } else if (meta && e.key.toLowerCase() === "v") {
         e.preventDefault();
-        rotateItem(selectedItemId);
+        pasteClipboard();
+      } else if (meta && e.key.toLowerCase() === "d") {
+        if (selectedItemIds.length === 0) return;
+        e.preventDefault();
+        duplicateSelection();
+      } else if (!meta && (e.key === "Delete" || e.key === "Backspace")) {
+        if (selectedItemIds.length === 0) return;
+        e.preventDefault();
+        deleteSelectedItems();
+      } else if (!meta && (e.key === "r" || e.key === "R")) {
+        if (selectedItemIds.length === 0) return;
+        e.preventDefault();
+        rotateSelectedItems();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedItemId, deleteItem, rotateItem]);
+  }, [selectedItemIds, deleteSelectedItems, rotateSelectedItems, copySelection, pasteClipboard, duplicateSelection]);
 
   const scale = computeScale(room, viewport.width, viewport.height);
 
@@ -115,11 +135,19 @@ export function Plan({ room, units, issueItemIds }: PlanProps) {
             item={item}
             scale={scale}
             units={units}
-            selected={item.id === selectedItemId}
+            selected={selectedSet.has(item.id)}
             hasIssue={issueItemIds.has(item.id)}
-            onPointerDown={(e) =>
-              drag.onPointerDown(e, item, room, scale.pxPerInch, scale.originX, scale.originY)
-            }
+            onPointerDown={(e: ReactPointerEvent<SVGGElement>) => {
+              if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                // Shift/Cmd/Ctrl-click adds or removes this item from the
+                // selection without moving anything — a plain click is what
+                // starts a drag, so multi-select and drag never fight.
+                e.stopPropagation();
+                toggleItemSelection(item.id);
+                return;
+              }
+              drag.onPointerDown(e, item, room, scale.pxPerInch, scale.originX, scale.originY, selectedItemIds);
+            }}
           />
         ))}
         <Dimensions room={room} scale={scale} units={units} />

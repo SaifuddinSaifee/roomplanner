@@ -8,11 +8,14 @@ import { migrate } from "@/src/model/migrate";
 import type { Home, Item, Opening, Room, RoomType, Rotation, Units } from "@/src/model/types";
 
 const HISTORY_LIMIT = 50;
+const PASTE_OFFSET = 12; // inches — visibly offsets a paste/duplicate from its source
 
 interface StoreState {
   home: Home;
   selectedRoomId: string | null;
-  selectedItemId: string | null;
+  selectedItemIds: string[];
+  /** In-memory clipboard, session-only — never persisted with the document. */
+  clipboard: Item[];
   past: Home[];
   future: Home[];
   /** Snapshot taken at the start of a drag gesture; committed to history on drag end. */
@@ -23,7 +26,12 @@ interface StoreState {
   markHydrated: () => void;
 
   selectRoom: (roomId: string | null) => void;
+  /** Replace the selection with just this item (or clear it, for null). */
   selectItem: (itemId: string | null) => void;
+  /** Add/remove one item from the current selection — shift/cmd-click. */
+  toggleItemSelection: (itemId: string) => void;
+  /** Replace the selection with this exact set — used after paste/duplicate. */
+  selectItems: (itemIds: string[]) => void;
 
   addRoom: (name: string, type: RoomType) => void;
   duplicateRoom: (roomId: string) => void;
@@ -36,12 +44,21 @@ interface StoreState {
   deleteOpening: (roomId: string, openingId: string) => void;
 
   addItem: (catalogId: string) => void;
+  /** Position edits are always per-item; width/depth may be applied to one item or shared across a homogeneous selection by the caller. */
   updateItem: (itemId: string, patch: Partial<Pick<Item, "x" | "y" | "w" | "d">>) => void;
-  rotateItem: (itemId: string) => void;
-  deleteItem: (itemId: string) => void;
+  /** Apply the same width/depth patch to every currently selected item. */
+  updateSelectedItems: (patch: Partial<Pick<Item, "w" | "d">>) => void;
+  /** Shift every currently selected item by the same (dx, dy) — a rigid group move, coherent for any selection. */
+  moveSelectedItems: (dx: number, dy: number) => void;
+  rotateSelectedItems: () => void;
+  deleteSelectedItems: () => void;
+  copySelection: () => void;
+  pasteClipboard: () => void;
+  duplicateSelection: () => void;
 
   beginDrag: () => void;
-  dragItemTo: (itemId: string, x: number, y: number) => void;
+  /** Batch position update used by drag — one item, or a whole group moving together. */
+  dragItemsTo: (positions: { id: string; x: number; y: number }[]) => void;
   endDrag: () => void;
 
   setUnits: (units: Units) => void;
@@ -74,19 +91,27 @@ function clampOpening(opening: Opening, room: Room): Opening {
 export const useStore = create<StoreState>((set) => ({
   home: makeDefaultHome(),
   selectedRoomId: null,
-  selectedItemId: null,
+  selectedItemIds: [],
+  clipboard: [],
   past: [],
   future: [],
   gestureSnapshot: null,
   hydrated: false,
 
-  hydrate: (home) => set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemId: null, hydrated: true }),
+  hydrate: (home) => set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemIds: [], hydrated: true }),
   // Called when there's nothing in storage yet, so the initial (default) home stands —
   // still needs a room selected, or the sidebar shows "add a room" despite one existing.
   markHydrated: () => set((state) => ({ hydrated: true, selectedRoomId: state.selectedRoomId ?? state.home.rooms[0]?.id ?? null })),
 
-  selectRoom: (roomId) => set({ selectedRoomId: roomId, selectedItemId: null }),
-  selectItem: (itemId) => set({ selectedItemId: itemId }),
+  selectRoom: (roomId) => set({ selectedRoomId: roomId, selectedItemIds: [] }),
+  selectItem: (itemId) => set({ selectedItemIds: itemId ? [itemId] : [] }),
+  toggleItemSelection: (itemId) =>
+    set((state) => ({
+      selectedItemIds: state.selectedItemIds.includes(itemId)
+        ? state.selectedItemIds.filter((id) => id !== itemId)
+        : [...state.selectedItemIds, itemId],
+    })),
+  selectItems: (itemIds) => set({ selectedItemIds: itemIds }),
 
   addRoom: (name, type) =>
     set((state) => {
@@ -96,7 +121,7 @@ export const useStore = create<StoreState>((set) => ({
         future: [],
         home: { ...state.home, rooms: [...state.home.rooms, room] },
         selectedRoomId: room.id,
-        selectedItemId: null,
+        selectedItemIds: [],
       };
     }),
 
@@ -104,17 +129,12 @@ export const useStore = create<StoreState>((set) => ({
     set((state) => {
       const room = currentRoom(state.home, roomId);
       if (!room) return {};
-      const idMap = new Map<string, string>();
       const clone: Room = {
         ...room,
         id: nanoid(8),
         name: `${room.name} copy`,
         openings: room.openings.map((o) => ({ ...o, id: nanoid(8) })),
-        items: room.items.map((item) => {
-          const newId = nanoid(8);
-          idMap.set(item.id, newId);
-          return { ...item, id: newId };
-        }),
+        items: room.items.map((item) => ({ ...item, id: nanoid(8) })),
       };
       const index = state.home.rooms.findIndex((r) => r.id === roomId);
       const rooms = [...state.home.rooms];
@@ -124,7 +144,7 @@ export const useStore = create<StoreState>((set) => ({
         future: [],
         home: { ...state.home, rooms },
         selectedRoomId: clone.id,
-        selectedItemId: null,
+        selectedItemIds: [],
       };
     }),
 
@@ -137,7 +157,7 @@ export const useStore = create<StoreState>((set) => ({
         future: [],
         home: { ...state.home, rooms },
         selectedRoomId: wasSelected ? rooms[0]?.id ?? null : state.selectedRoomId,
-        selectedItemId: wasSelected ? null : state.selectedItemId,
+        selectedItemIds: wasSelected ? [] : state.selectedItemIds,
       };
     }),
 
@@ -223,7 +243,7 @@ export const useStore = create<StoreState>((set) => ({
         past: pushHistory(state),
         future: [],
         home: withRoom(state.home, roomId, (r) => ({ ...r, items: [...r.items, item] })),
-        selectedItemId: item.id,
+        selectedItemIds: [item.id],
       };
     }),
 
@@ -241,50 +261,137 @@ export const useStore = create<StoreState>((set) => ({
       };
     }),
 
-  rotateItem: (itemId) =>
+  updateSelectedItems: (patch) =>
     set((state) => {
       const roomId = state.selectedRoomId;
-      if (!roomId) return {};
-      const room = currentRoom(state.home, roomId);
-      const item = room?.items.find((it) => it.id === itemId);
-      if (!room || !item) return {};
-
-      // footprint()'s center is derived from x/y/w/d alone, so it is already
-      // invariant under rot — no position adjustment needed here.
-      const nextRot = (((item.rot + 90) % 360) as Rotation);
-
+      if (!roomId || state.selectedItemIds.length === 0) return {};
+      const ids = new Set(state.selectedItemIds);
       return {
         past: pushHistory(state),
         future: [],
         home: withRoom(state.home, roomId, (r) => ({
           ...r,
-          items: r.items.map((it) => (it.id === itemId ? { ...it, rot: nextRot } : it)),
+          items: r.items.map((it) => (ids.has(it.id) ? { ...it, ...patch } : it)),
         })),
       };
     }),
 
-  deleteItem: (itemId) =>
+  moveSelectedItems: (dx, dy) =>
     set((state) => {
       const roomId = state.selectedRoomId;
-      if (!roomId) return {};
+      if (!roomId || state.selectedItemIds.length === 0 || (dx === 0 && dy === 0)) return {};
+      const ids = new Set(state.selectedItemIds);
       return {
         past: pushHistory(state),
         future: [],
-        home: withRoom(state.home, roomId, (r) => ({ ...r, items: r.items.filter((it) => it.id !== itemId) })),
-        selectedItemId: state.selectedItemId === itemId ? null : state.selectedItemId,
+        home: withRoom(state.home, roomId, (r) => ({
+          ...r,
+          items: r.items.map((it) => (ids.has(it.id) ? { ...it, x: it.x + dx, y: it.y + dy } : it)),
+        })),
+      };
+    }),
+
+  rotateSelectedItems: () =>
+    set((state) => {
+      const roomId = state.selectedRoomId;
+      if (!roomId || state.selectedItemIds.length === 0) return {};
+      const ids = new Set(state.selectedItemIds);
+      return {
+        past: pushHistory(state),
+        future: [],
+        // footprint()'s center is derived from x/y/w/d alone, so it is
+        // already invariant under rot — no position adjustment needed here.
+        // Each item rotates independently around its own center, so this is
+        // safe for any selection, homogeneous or not.
+        home: withRoom(state.home, roomId, (r) => ({
+          ...r,
+          items: r.items.map((it) => (ids.has(it.id) ? { ...it, rot: (((it.rot + 90) % 360) as Rotation) } : it)),
+        })),
+      };
+    }),
+
+  deleteSelectedItems: () =>
+    set((state) => {
+      const roomId = state.selectedRoomId;
+      if (!roomId || state.selectedItemIds.length === 0) return {};
+      const ids = new Set(state.selectedItemIds);
+      return {
+        past: pushHistory(state),
+        future: [],
+        home: withRoom(state.home, roomId, (r) => ({ ...r, items: r.items.filter((it) => !ids.has(it.id)) })),
+        selectedItemIds: [],
+      };
+    }),
+
+  copySelection: () =>
+    set((state) => {
+      const roomId = state.selectedRoomId;
+      const room = currentRoom(state.home, roomId);
+      if (!room || state.selectedItemIds.length === 0) return {};
+      const ids = new Set(state.selectedItemIds);
+      const items = room.items.filter((it) => ids.has(it.id));
+      if (items.length === 0) return {};
+      return { clipboard: items.map((it) => ({ ...it })) };
+    }),
+
+  pasteClipboard: () =>
+    set((state) => {
+      const roomId = state.selectedRoomId;
+      if (!roomId || state.clipboard.length === 0) return {};
+      const newItems: Item[] = state.clipboard.map((item) => ({
+        ...item,
+        id: nanoid(8),
+        x: item.x + PASTE_OFFSET,
+        y: item.y + PASTE_OFFSET,
+      }));
+      return {
+        past: pushHistory(state),
+        future: [],
+        home: withRoom(state.home, roomId, (r) => ({ ...r, items: [...r.items, ...newItems] })),
+        selectedItemIds: newItems.map((it) => it.id),
+        // Advance the clipboard to the just-pasted copies so repeated paste
+        // cascades outward (12in, 24in, 36in...) instead of stacking exactly
+        // on top of itself every time.
+        clipboard: newItems,
+      };
+    }),
+
+  duplicateSelection: () =>
+    set((state) => {
+      const roomId = state.selectedRoomId;
+      const room = currentRoom(state.home, roomId);
+      if (!roomId || !room || state.selectedItemIds.length === 0) return {};
+      const ids = new Set(state.selectedItemIds);
+      const selected = room.items.filter((it) => ids.has(it.id));
+      if (selected.length === 0) return {};
+      const newItems: Item[] = selected.map((item) => ({
+        ...item,
+        id: nanoid(8),
+        x: item.x + PASTE_OFFSET,
+        y: item.y + PASTE_OFFSET,
+      }));
+      return {
+        past: pushHistory(state),
+        future: [],
+        home: withRoom(state.home, roomId, (r) => ({ ...r, items: [...r.items, ...newItems] })),
+        selectedItemIds: newItems.map((it) => it.id),
       };
     }),
 
   beginDrag: () => set((state) => ({ gestureSnapshot: state.gestureSnapshot ?? state.home })),
 
-  dragItemTo: (itemId, x, y) =>
+  dragItemsTo: (positions) =>
     set((state) => {
       const roomId = state.selectedRoomId;
       if (!roomId) return {};
+      const byId = new Map(positions.map((p) => [p.id, p]));
       return {
         home: withRoom(state.home, roomId, (r) => ({
           ...r,
-          items: r.items.map((it) => (it.id === itemId ? { ...it, x, y } : it)),
+          items: r.items.map((it) => {
+            const p = byId.get(it.id);
+            return p ? { ...it, x: p.x, y: p.y } : it;
+          }),
         })),
       };
     }),
@@ -306,12 +413,12 @@ export const useStore = create<StoreState>((set) => ({
 
   importHome: (raw) => {
     const home = migrate(raw);
-    set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemId: null, past: [], future: [] });
+    set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemIds: [], past: [], future: [] });
   },
 
   resetHome: () => {
     const home = makeDefaultHome();
-    set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemId: null, past: [], future: [] });
+    set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemIds: [], past: [], future: [] });
   },
 
   undo: () =>

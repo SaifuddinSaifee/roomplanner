@@ -48,4 +48,19 @@ describe("units", () => {
     expect(parseLength("", "ft")).toBeNull();
     expect(parseLength("abc", "ft")).toBeNull();
   });
+
+  it("parses negative lengths, needed for move-by deltas and off-wall positions", () => {
+    expect(parseLength("-6\"", "ft")).toBe(-6);
+    expect(parseLength("-1'-6\"", "ft")).toBe(-18);
+    expect(parseLength("-0.5", "ft")).toBe(-6);
+    expect(parseLength("-8-6", "ft")).toBe(-102);
+    expect(parseLength("-100", "mm")).toBe(-4);
+  });
+
+  it("round-trips negative ft-in values", () => {
+    for (let inches = -240; inches < 0; inches += 3) {
+      const formatted = formatLength(inches, "ft");
+      expect(parseLength(formatted, "ft")).toBe(inches);
+    }
+  });
 });

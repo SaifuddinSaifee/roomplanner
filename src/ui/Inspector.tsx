@@ -5,19 +5,23 @@ import { ItemFields } from "./ItemFields";
 
 export function Inspector() {
   const selectedRoomId = useStore((s) => s.selectedRoomId);
-  const selectedItemId = useStore((s) => s.selectedItemId);
+  const selectedItemIds = useStore((s) => s.selectedItemIds);
   const rooms = useStore((s) => s.home.rooms);
 
   const room = rooms.find((r) => r.id === selectedRoomId);
-  const item = room?.items.find((i) => i.id === selectedItemId);
+  const items = room?.items.filter((i) => selectedItemIds.includes(i.id)) ?? [];
 
   if (!room) {
     return <p className="text-sm text-muted">Select a room to get started.</p>;
   }
 
-  if (!item) {
-    return <p className="text-sm text-muted">Select an item on the plan to edit it here.</p>;
+  if (items.length === 0) {
+    return (
+      <p className="text-sm text-muted">
+        Select an item on the plan to edit it here (shift/cmd-click to select several).
+      </p>
+    );
   }
 
-  return <ItemFields room={room} item={item} />;
+  return <ItemFields room={room} items={items} />;
 }
