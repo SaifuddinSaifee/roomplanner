@@ -34,6 +34,37 @@ export function computeScale(
   return { pxPerInch, originX, originY };
 }
 
+export const MIN_ZOOM = 0.5;
+export const MAX_ZOOM = 4;
+
+/** User-driven view adjustment on top of the auto-fit scale — never persisted with the document. */
+export interface ViewState {
+  zoom: number;
+  panX: number;
+  panY: number;
+}
+
+export const DEFAULT_VIEW: ViewState = { zoom: 1, panX: 0, panY: 0 };
+
+/**
+ * Like `computeScale`, but lets the user zoom/pan on top of the auto-fit
+ * baseline. Zooming multiplies the fit `pxPerInch`; panning is a raw px
+ * offset added after re-centering, so it reads the same at any zoom level.
+ */
+export function computeViewScale(
+  room: Pick<Room, "width" | "depth">,
+  viewportWidth: number,
+  viewportHeight: number,
+  view: ViewState,
+  marginIn: number = PLAN_MARGIN_IN
+): Scale {
+  const fit = computeScale(room, viewportWidth, viewportHeight, marginIn);
+  const pxPerInch = fit.pxPerInch * view.zoom;
+  const originX = viewportWidth / 2 - (room.width / 2) * pxPerInch + view.panX;
+  const originY = viewportHeight / 2 - (room.depth / 2) * pxPerInch + view.panY;
+  return { pxPerInch, originX, originY };
+}
+
 export function toPxX(inches: number, scale: Scale): number {
   return scale.originX + inches * scale.pxPerInch;
 }

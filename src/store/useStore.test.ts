@@ -158,6 +158,22 @@ describe("useStore selection and clipboard", () => {
     expect(after.items.find((i) => i.id === desk.id)).toMatchObject({ x: dx0 + 5, y: dy0 - 3 });
   });
 
+  it("rotateCompass steps by 45 degrees and wraps at 360, without touching home or history", () => {
+    expect(useStore.getState().compassRotation).toBe(0);
+    const homeBefore = useStore.getState().home;
+
+    for (let i = 1; i <= 7; i++) {
+      useStore.getState().rotateCompass();
+      expect(useStore.getState().compassRotation).toBe(i * 45);
+    }
+    useStore.getState().rotateCompass(); // 8th step wraps 360 -> 0
+    expect(useStore.getState().compassRotation).toBe(0);
+
+    // A view preference, not project data: no history entries, `home` untouched.
+    expect(useStore.getState().home).toBe(homeBefore);
+    expect(useStore.getState().past).toHaveLength(0);
+  });
+
   it("dragItemsTo updates multiple items' positions in a single batch", () => {
     const room = currentRoom();
     const [a, b] = room.items;

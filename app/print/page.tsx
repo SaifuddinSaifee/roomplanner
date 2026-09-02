@@ -41,7 +41,7 @@ export default function PrintPage() {
               </span>
             </header>
             <div className="min-h-0 flex-1">
-              <Plan room={room} units={home.units} issueItemIds={issueItemIds} />
+              <Plan room={room} units={home.units} issueItemIds={issueItemIds} interactive={false} />
             </div>
             {issues.length > 0 && (
               <ul className="mt-2 text-xs text-warn">

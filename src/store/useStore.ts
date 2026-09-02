@@ -16,6 +16,8 @@ interface StoreState {
   selectedItemIds: string[];
   /** In-memory clipboard, session-only — never persisted with the document. */
   clipboard: Item[];
+  /** North-arrow orientation, in degrees — a view preference, session-only like the clipboard, never written into `home` or exported project JSON. */
+  compassRotation: number;
   past: Home[];
   future: Home[];
   /** Snapshot taken at the start of a drag gesture; committed to history on drag end. */
@@ -55,6 +57,8 @@ interface StoreState {
   copySelection: () => void;
   pasteClipboard: () => void;
   duplicateSelection: () => void;
+  /** Rotate the compass by 45°, wrapping at 360 — a display-only preference. */
+  rotateCompass: () => void;
 
   beginDrag: () => void;
   /** Batch position update used by drag — one item, or a whole group moving together. */
@@ -93,6 +97,7 @@ export const useStore = create<StoreState>((set) => ({
   selectedRoomId: null,
   selectedItemIds: [],
   clipboard: [],
+  compassRotation: 0,
   past: [],
   future: [],
   gestureSnapshot: null,
@@ -377,6 +382,8 @@ export const useStore = create<StoreState>((set) => ({
         selectedItemIds: newItems.map((it) => it.id),
       };
     }),
+
+  rotateCompass: () => set((state) => ({ compassRotation: (state.compassRotation + 45) % 360 })),
 
   beginDrag: () => set((state) => ({ gestureSnapshot: state.gestureSnapshot ?? state.home })),
 
