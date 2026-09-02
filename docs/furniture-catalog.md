@@ -114,7 +114,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 | `chandelier` | Chandelier | 30 × 30 | 18 × 18 | Yes | free | 0 |
 | `wall_sconce` | Wall sconce | 6 × 4 | 4 × 3 | No | wall | 0 |
 
-## Outdoor (5 items) — *new category*
+## Outdoor (7 items) — *new category*
 
 | ID | Name | Default W × D | Min W × D | Resizable | Wall affinity | Clearance |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -123,6 +123,8 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 | `outdoor_sofa` | Outdoor sofa | 72 × 32 | 60 × 28 | Yes | wall | 30 |
 | `sun_lounger` | Sun lounger | 26 × 75 | 24 × 72 | Yes | free | 24 |
 | `umbrella_stand` | Patio umbrella | 12 × 12 | 10 × 10 | No | free | 0 |
+| `open_deck` *(new)* | Open deck | 144 × 96 | 72 × 60 | Yes | wall | 0 |
+| `balcony` *(new)* | Balcony | 96 × 48 | 48 × 30 | Yes | wall | 0 |
 
 ## Entryway (4 items) — *new category*
 
@@ -147,7 +149,7 @@ All dimensions are inches. `Clearance` is the required front clearance the valid
 ## Summary
 
 - **11 categories** total (7 existing + 4 new: Lighting, Outdoor, Entryway, Kids & Nursery)
-- **72 items** total (26 existing + 46 new)
+- **74 items** total (26 existing + 48 new)
 - **7 iron-frame items** added across Living, Dining, Lighting, Outdoor, and Entryway: `side_table_iron`, `iron_table_long`, `dining_table_iron`, `iron_floor_lamp`, `patio_table_iron`, `patio_chair_iron`, `console_table_iron`
 - **7 lighting items** added: `floor_lamp`, `floor_lamp_arc`, `iron_floor_lamp`, `table_lamp`, `pendant_light`, `chandelier`, `wall_sconce`
 

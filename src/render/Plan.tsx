@@ -25,7 +25,7 @@ interface PlanProps {
   interactive?: boolean;
 }
 
-const PLAN_DEFS = (
+export const PLAN_DEFS = (
   <defs>
     <pattern id="floor" width="22" height="22" patternUnits="userSpaceOnUse">
       <rect width="22" height="22" fill="#f7f4ee" />

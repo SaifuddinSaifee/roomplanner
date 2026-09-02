@@ -111,6 +111,8 @@ export const CATALOG: CatalogEntry[] = [
   { id: "outdoor_sofa", name: "Outdoor sofa", category: "Outdoor", defaultW: 72, defaultD: 32, minW: 60, minD: 28, resizable: true, wallAffinity: "wall", clearance: 30 },
   { id: "sun_lounger", name: "Sun lounger", category: "Outdoor", defaultW: 26, defaultD: 75, minW: 24, minD: 72, resizable: true, wallAffinity: "free", clearance: 24 },
   { id: "umbrella_stand", name: "Patio umbrella", category: "Outdoor", defaultW: 12, defaultD: 12, minW: 10, minD: 10, resizable: false, wallAffinity: "free", clearance: 0 },
+  { id: "open_deck", name: "Open deck", category: "Outdoor", defaultW: 144, defaultD: 96, minW: 72, minD: 60, resizable: true, wallAffinity: "wall", clearance: 0 },
+  { id: "balcony", name: "Balcony", category: "Outdoor", defaultW: 96, defaultD: 48, minW: 48, minD: 30, resizable: true, wallAffinity: "wall", clearance: 0 },
 
   // Entryway
   { id: "console_table", name: "Console table", category: "Entryway", defaultW: 42, defaultD: 14, minW: 30, minD: 12, resizable: true, wallAffinity: "wall", clearance: 18 },

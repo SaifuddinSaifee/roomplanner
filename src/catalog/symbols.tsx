@@ -145,6 +145,47 @@ function lamp(shadeOnly = false): Symbol {
   };
 }
 
+function decking(): Symbol {
+  return (w, d) => {
+    const planks = Math.max(2, Math.round(d / 14));
+    return (
+      <>
+        <rect x={0} y={0} width={w} height={d} fill={FILL} stroke={STROKE} strokeWidth={1.5} />
+        {Array.from({ length: planks - 1 }).map((_, i) => (
+          <line
+            key={i}
+            x1={0}
+            y1={((i + 1) / planks) * d}
+            x2={w}
+            y2={((i + 1) / planks) * d}
+            stroke={STROKE}
+            strokeWidth={0.5}
+            opacity={0.45}
+          />
+        ))}
+      </>
+    );
+  };
+}
+
+// Drawn with the outward-facing edge (away from the house wall) at y=d, matching
+// this file's convention that a wall-affinity item's y=0 edge sits flush against the wall.
+function railedOutdoorArea(): Symbol {
+  return (w, d) => {
+    const posts = Math.max(3, Math.round(w / 12) + 1);
+    return (
+      <>
+        <rect x={0} y={0} width={w} height={d} fill={FILL} stroke={STROKE} strokeWidth={1.5} />
+        <line x1={2} y1={d - 3} x2={w - 2} y2={d - 3} stroke={STROKE} strokeWidth={1.25} />
+        {Array.from({ length: posts }).map((_, i) => {
+          const x = posts === 1 ? w / 2 : 2 + (i / (posts - 1)) * (w - 4);
+          return <line key={i} x1={x} y1={d - 7} x2={x} y2={d} stroke={STROKE} strokeWidth={0.75} />;
+        })}
+      </>
+    );
+  };
+}
+
 function bench(): Symbol {
   return (w, d) => (
     <>
@@ -390,6 +431,8 @@ export const SYMBOLS: Record<string, Symbol> = {
       <circle cx={w / 2} cy={d / 2} r={1.6} fill={STROKE} />
     </>
   ),
+  open_deck: decking(),
+  balcony: railedOutdoorArea(),
 
   console_table: table(true),
   console_table_iron: ironTable(false),

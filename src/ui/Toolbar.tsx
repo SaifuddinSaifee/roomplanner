@@ -4,21 +4,21 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 
+import { renderHousePlanSvg, renderRoomPlanSvg, type RenderedSvg } from "@/src/render/staticPlan";
 import {
-  copyPlanJpgToClipboard,
-  copyPlanPngToClipboard,
-  copyPlanSvgToClipboard,
+  copyImageBlobToClipboard,
   copyTextToClipboard,
   downloadBlob,
   downloadFileBlob,
-  planSvgToPngBlob,
-  serializePlanSvg,
+  svgMarkupToJpgBlob,
+  svgMarkupToPngBlob,
 } from "@/src/store/download";
 import { useStore } from "@/src/store/useStore";
 import { Dropdown, ToolbarMenu } from "@/src/ui/ToolbarMenu";
 
+type Scope = "room" | "house";
 type CopyFormat = "png" | "jpg" | "svg" | "json";
-type ExportFormat = "png" | "svg" | "json" | "png-2x" | "png-4x";
+type ExportFormat = "png" | "png-2x" | "png-4x" | "svg" | "json";
 
 /** Print-view toggles, round-tripped to `/print` as query params since it opens in a separate tab/document. */
 interface PrintOptions {
@@ -32,6 +32,10 @@ function printHref(options: PrintOptions): string {
   if (options.hideRemarks) params.set("hideRemarks", "1");
   const qs = params.toString();
   return qs ? `/print?${qs}` : "/print";
+}
+
+function slug(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, "-") || "untitled";
 }
 
 export function Toolbar() {
@@ -51,52 +55,89 @@ export function Toolbar() {
   const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [printOptions, setPrintOptions] = useState<PrintOptions>(DEFAULT_PRINT_OPTIONS);
 
+  const selectedRoom = home.rooms.find((r) => r.id === selectedRoomId);
+  const hasRooms = home.rooms.length > 0;
+
   function flashStatus(message: string) {
     if (statusTimer.current) clearTimeout(statusTimer.current);
     setStatus(message);
     statusTimer.current = setTimeout(() => setStatus(null), 1800);
   }
 
-  function roomFilename(tail: string): string {
-    const room = home.rooms.find((r) => r.id === selectedRoomId);
-    const base = room?.name.toLowerCase().replace(/\s+/g, "-") ?? "room";
-    return `${base}${tail}`;
+  /** Renders the requested scope as a standalone SVG — independent of the live canvas's current zoom/pan/container size. */
+  function getRenderedSvg(scope: Scope): RenderedSvg | null {
+    if (scope === "room") return selectedRoom ? renderRoomPlanSvg(selectedRoom, units) : null;
+    return renderHousePlanSvg(home.rooms, units);
   }
 
-  async function handleCopy(format: CopyFormat) {
-    const ok =
+  function scopedHomeJson(scope: Scope): string | null {
+    if (scope === "house") return JSON.stringify(home, null, 2);
+    if (!selectedRoom) return null;
+    return JSON.stringify({ version: 1, name: selectedRoom.name, units, rooms: [selectedRoom] }, null, 2);
+  }
+
+  async function handleCopy(scope: Scope, format: CopyFormat) {
+    if (format === "json") {
+      const text = scopedHomeJson(scope);
+      if (!text) {
+        flashStatus("No room selected");
+        return;
+      }
+      flashStatus((await copyTextToClipboard(text)) ? "Copied JSON" : "Copy JSON failed");
+      return;
+    }
+
+    const rendered = getRenderedSvg(scope);
+    if (!rendered) {
+      flashStatus(scope === "room" ? "No room selected" : "No rooms to copy");
+      return;
+    }
+
+    if (format === "svg") {
+      flashStatus((await copyTextToClipboard(rendered.markup)) ? "Copied SVG" : "Copy SVG failed");
+      return;
+    }
+
+    const blob =
       format === "png"
-        ? await copyPlanPngToClipboard()
-        : format === "jpg"
-          ? await copyPlanJpgToClipboard()
-          : format === "svg"
-            ? await copyPlanSvgToClipboard()
-            : await copyTextToClipboard(JSON.stringify(home, null, 2));
+        ? await svgMarkupToPngBlob(rendered.markup, rendered.width, rendered.height, 2)
+        : await svgMarkupToJpgBlob(rendered.markup, rendered.width, rendered.height, 2);
+    const ok = await copyImageBlobToClipboard(blob, format === "png" ? "image/png" : "image/jpeg");
     flashStatus(ok ? `Copied ${format.toUpperCase()}` : `Copy ${format.toUpperCase()} failed`);
   }
 
-  async function handleExport(format: ExportFormat) {
+  async function handleExport(scope: Scope, format: ExportFormat) {
     if (format === "json") {
-      downloadBlob(JSON.stringify(home, null, 2), "application/json", "roomplanner-project.json");
-      return;
-    }
-    if (format === "svg") {
-      const svg = serializePlanSvg();
-      if (!svg) {
-        flashStatus("Nothing to export");
+      const text = scopedHomeJson(scope);
+      if (!text) {
+        flashStatus("No room selected");
         return;
       }
-      downloadBlob(svg, "image/svg+xml;charset=utf-8", roomFilename(".svg"));
+      const filename = scope === "room" ? `${slug(selectedRoom!.name)}.json` : "roomplanner-project.json";
+      downloadBlob(text, "application/json", filename);
       return;
     }
-    const scale = format === "png-4x" ? 4 : format === "png-2x" ? 2 : 1;
+
+    const rendered = getRenderedSvg(scope);
+    if (!rendered) {
+      flashStatus(scope === "room" ? "No room selected" : "No rooms to export");
+      return;
+    }
+    const filenameBase = scope === "room" ? slug(selectedRoom!.name) : slug(home.name || "house-plan");
+
+    if (format === "svg") {
+      downloadBlob(rendered.markup, "image/svg+xml;charset=utf-8", `${filenameBase}.svg`);
+      return;
+    }
+
+    const scaleFactor = format === "png-4x" ? 4 : format === "png-2x" ? 2 : 1;
     const suffix = format === "png-4x" ? "@4x" : format === "png-2x" ? "@2x" : "";
-    const blob = await planSvgToPngBlob(scale);
+    const blob = await svgMarkupToPngBlob(rendered.markup, rendered.width, rendered.height, scaleFactor);
     if (!blob) {
-      flashStatus("Nothing to export");
+      flashStatus("Export failed");
       return;
     }
-    downloadFileBlob(blob, roomFilename(`${suffix}.png`));
+    downloadFileBlob(blob, `${filenameBase}${suffix}.png`);
   }
 
   function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
@@ -135,11 +176,21 @@ export function Toolbar() {
         label="Copy"
         sections={[
           {
+            heading: "Current room",
             items: [
-              { key: "png", label: "PNG", onSelect: () => handleCopy("png") },
-              { key: "jpg", label: "JPG", onSelect: () => handleCopy("jpg") },
-              { key: "svg", label: "SVG", onSelect: () => handleCopy("svg") },
-              { key: "json", label: "JSON", onSelect: () => handleCopy("json") },
+              { key: "room-png", label: "PNG", disabled: !selectedRoom, onSelect: () => handleCopy("room", "png") },
+              { key: "room-jpg", label: "JPG", disabled: !selectedRoom, onSelect: () => handleCopy("room", "jpg") },
+              { key: "room-svg", label: "SVG", disabled: !selectedRoom, onSelect: () => handleCopy("room", "svg") },
+              { key: "room-json", label: "JSON", disabled: !selectedRoom, onSelect: () => handleCopy("room", "json") },
+            ],
+          },
+          {
+            heading: "Complete house plan",
+            items: [
+              { key: "house-png", label: "PNG", disabled: !hasRooms, onSelect: () => handleCopy("house", "png") },
+              { key: "house-jpg", label: "JPG", disabled: !hasRooms, onSelect: () => handleCopy("house", "jpg") },
+              { key: "house-svg", label: "SVG", disabled: !hasRooms, onSelect: () => handleCopy("house", "svg") },
+              { key: "house-json", label: "JSON", disabled: !hasRooms, onSelect: () => handleCopy("house", "json") },
             ],
           },
         ]}
@@ -176,17 +227,43 @@ export function Toolbar() {
         label="Export"
         sections={[
           {
+            heading: "Current room",
             items: [
-              { key: "png", label: "PNG", onSelect: () => handleExport("png") },
-              { key: "svg", label: "SVG", onSelect: () => handleExport("svg") },
-              { key: "json", label: "JSON", onSelect: () => handleExport("json") },
+              { key: "room-png", label: "PNG", disabled: !selectedRoom, onSelect: () => handleExport("room", "png") },
+              {
+                key: "room-png-2x",
+                label: "PNG — 2× (high quality)",
+                disabled: !selectedRoom,
+                onSelect: () => handleExport("room", "png-2x"),
+              },
+              {
+                key: "room-png-4x",
+                label: "PNG — 4× (high quality)",
+                disabled: !selectedRoom,
+                onSelect: () => handleExport("room", "png-4x"),
+              },
+              { key: "room-svg", label: "SVG", disabled: !selectedRoom, onSelect: () => handleExport("room", "svg") },
+              { key: "room-json", label: "JSON", disabled: !selectedRoom, onSelect: () => handleExport("room", "json") },
             ],
           },
           {
-            heading: "High-quality PNG",
+            heading: "Complete house plan",
             items: [
-              { key: "png-2x", label: "2× original size", onSelect: () => handleExport("png-2x") },
-              { key: "png-4x", label: "4× original size", onSelect: () => handleExport("png-4x") },
+              { key: "house-png", label: "PNG", disabled: !hasRooms, onSelect: () => handleExport("house", "png") },
+              {
+                key: "house-png-2x",
+                label: "PNG — 2× (high quality)",
+                disabled: !hasRooms,
+                onSelect: () => handleExport("house", "png-2x"),
+              },
+              {
+                key: "house-png-4x",
+                label: "PNG — 4× (high quality)",
+                disabled: !hasRooms,
+                onSelect: () => handleExport("house", "png-4x"),
+              },
+              { key: "house-svg", label: "SVG", disabled: !hasRooms, onSelect: () => handleExport("house", "svg") },
+              { key: "house-json", label: "JSON", disabled: !hasRooms, onSelect: () => handleExport("house", "json") },
             ],
           },
         ]}
