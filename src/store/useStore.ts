@@ -69,6 +69,8 @@ interface StoreState {
   setUnits: (units: Units) => void;
   setHomeName: (name: string) => void;
   importHome: (raw: unknown) => void;
+  /** Append rooms (e.g. from an imported file) to the current home, rather than replacing it — ids are regenerated so they never collide with existing rooms. */
+  importRooms: (rooms: Room[]) => void;
   resetHome: () => void;
 
   undo: () => void;
@@ -423,6 +425,24 @@ export const useStore = create<StoreState>((set) => ({
     const home = migrate(raw);
     set({ home, selectedRoomId: home.rooms[0]?.id ?? null, selectedItemIds: [], past: [], future: [] });
   },
+
+  importRooms: (rooms) =>
+    set((state) => {
+      if (rooms.length === 0) return {};
+      const cloned = rooms.map((room) => ({
+        ...room,
+        id: makeRoomId(),
+        openings: room.openings.map((o) => ({ ...o, id: nanoid(8) })),
+        items: room.items.map((item) => ({ ...item, id: nanoid(8) })),
+      }));
+      return {
+        past: pushHistory(state),
+        future: [],
+        home: { ...state.home, rooms: [...state.home.rooms, ...cloned] },
+        selectedRoomId: cloned[0].id,
+        selectedItemIds: [],
+      };
+    }),
 
   resetHome: () => {
     const home = makeDefaultHome();

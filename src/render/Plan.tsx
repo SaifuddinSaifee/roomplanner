@@ -2,16 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { LuRuler } from "react-icons/lu";
 
 import { useItemDrag } from "@/src/interact/useDrag";
+import { useMeasureTool } from "@/src/interact/useMeasure";
 import { clamp, roomContentBounds } from "@/src/model/geometry";
 import type { Room, Units } from "@/src/model/types";
 import { useStore } from "@/src/store/useStore";
 import { Compass } from "./Compass";
 import { Dimensions } from "./Dimensions";
 import { ItemNode } from "./ItemNode";
+import { MeasureOverlay } from "./MeasureOverlay";
 import { Openings } from "./Openings";
 import { RoomShell } from "./RoomShell";
+import { Ruler } from "./Ruler";
 import { computeScale, computeViewScale, DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, type ViewState } from "./scale";
 
 const COMPASS_MARGIN = 40;
@@ -57,6 +61,14 @@ export const PLAN_DEFS = (
       .leader { stroke:#8b8578; stroke-width:1; }
       .selection-ring { stroke:#2b6cff; stroke-width:1.5; stroke-dasharray:4 3; }
       .item-issue > g > *:first-child { stroke:#c02626 !important; stroke-width:2.5 !important; }
+      /* While the measure tool is armed, every hover surface should read as
+         "click to place a point" — not the item-drag/grab affordances they
+         normally carry. */
+      #plan-svg.measuring .item,
+      #plan-svg.measuring .item-label,
+      #plan-svg.measuring .item-dims {
+        cursor: crosshair;
+      }
     `}</style>
   </defs>
 );
@@ -81,6 +93,7 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
   const selectedSet = useMemo(() => new Set(selectedItemIds), [selectedItemIds]);
 
   const drag = useItemDrag(svgRef);
+  const measure = useMeasureTool(svgRef);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -130,11 +143,25 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
         if (selectedItemIds.length === 0) return;
         e.preventDefault();
         rotateSelectedItems();
+      } else if (!meta && (e.key === "m" || e.key === "M")) {
+        e.preventDefault();
+        measure.toggle();
+      } else if (e.key === "Escape" && measure.anchor) {
+        e.preventDefault();
+        measure.reset();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedItemIds, deleteSelectedItems, rotateSelectedItems, copySelection, pasteClipboard, duplicateSelection]);
+  }, [
+    selectedItemIds,
+    deleteSelectedItems,
+    rotateSelectedItems,
+    copySelection,
+    pasteClipboard,
+    duplicateSelection,
+    measure,
+  ]);
 
   const scale = interactive
     ? computeViewScale(room, viewport.width, viewport.height, view)
@@ -199,10 +226,11 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
         selectItem(null);
         return;
       }
+      if (measure.handlePointerDown(e, scale.pxPerInch, scale.originX, scale.originY, room)) return;
       panRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, panX: view.panX, panY: view.panY, moved: false };
       e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [interactive, selectItem, view.panX, view.panY]
+    [interactive, selectItem, view.panX, view.panY, measure, room, scale.pxPerInch, scale.originX, scale.originY]
   );
 
   const handleBackgroundPointerMove = useCallback(
@@ -214,9 +242,10 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pan.moved = true;
         if (pan.moved) setView((prev) => ({ ...prev, panX: pan.panX + dx, panY: pan.panY + dy }));
       }
+      measure.handlePointerMove(e, scale.pxPerInch, scale.originX, scale.originY, room);
       drag.onPointerMove(e, scale.pxPerInch, scale.originX, scale.originY);
     },
-    [drag, scale.pxPerInch, scale.originX, scale.originY]
+    [drag, measure, room, scale.pxPerInch, scale.originX, scale.originY]
   );
 
   const handleBackgroundPointerUp = useCallback(
@@ -236,13 +265,14 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
       <svg
         ref={svgRef}
         id="plan-svg"
+        className={measure.active ? "measuring" : undefined}
         width="100%"
         height="100%"
         viewBox={`0 0 ${viewport.width} ${viewport.height}`}
         onPointerMove={handleBackgroundPointerMove}
         onPointerUp={handleBackgroundPointerUp}
         onPointerDown={handleBackgroundPointerDown}
-        style={{ cursor: interactive ? "grab" : "default", touchAction: "none" }}
+        style={{ cursor: interactive ? (measure.active ? "crosshair" : "grab") : "default", touchAction: "none" }}
         role="img"
         aria-label={`Floor plan of ${room.name}`}
       >
@@ -259,6 +289,7 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
             selected={selectedSet.has(item.id)}
             hasIssue={issueItemIds.has(item.id)}
             onPointerDown={(e: ReactPointerEvent<SVGGElement>) => {
+              if (measure.handlePointerDown(e, scale.pxPerInch, scale.originX, scale.originY, room)) return;
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
                 // Shift/Cmd/Ctrl-click adds or removes this item from the
                 // selection without moving anything — a plain click is what
@@ -279,9 +310,30 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
           interactive={interactive}
           onRotate={rotateCompass}
         />
+        {measure.anchor && measure.live && (
+          <MeasureOverlay
+            anchor={measure.anchor}
+            live={measure.live}
+            locked={measure.locked}
+            scale={scale}
+            units={units}
+            onClear={measure.reset}
+          />
+        )}
+        {interactive && <Ruler viewportWidth={viewport.width} viewportHeight={viewport.height} scale={scale} units={units} />}
       </svg>
       {interactive && (
         <div className="absolute right-3 bottom-3 flex items-center gap-1 rounded-lg border border-line bg-panel/95 px-1.5 py-1 text-ink shadow-sm">
+          <button
+            className={`flex h-6 w-6 items-center justify-center rounded-md hover:bg-accent-soft ${measure.active ? "bg-accent text-white hover:bg-accent" : ""}`}
+            onClick={measure.toggle}
+            aria-label="Toggle measure tool"
+            aria-pressed={measure.active}
+            title="Measure distance between two points (M)"
+          >
+            <LuRuler size={14} />
+          </button>
+          <div className="mx-1 h-4 w-px bg-line" />
           <button
             className="h-6 w-6 rounded-md text-sm font-semibold hover:bg-accent-soft disabled:opacity-30"
             onClick={() => zoomByFactor(1 / ZOOM_STEP)}

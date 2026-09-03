@@ -73,6 +73,19 @@ function coerceRoom(raw: unknown, index: number): Room | null {
 }
 
 /**
+ * Validate and repair the rooms out of an arbitrary JSON value, for
+ * importing into an *existing* home rather than replacing it — a full home
+ * export (`{ rooms: [...] }`), a single-room export (same shape, one room),
+ * or (defensively) a bare array of rooms. Unlike `migrate`, an invalid or
+ * empty file yields an empty array rather than silently falling back to the
+ * default demo home, so the caller can tell the user their file didn't work.
+ */
+export function coerceRoomsFromImport(raw: unknown): Room[] {
+  const source = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.rooms) ? raw.rooms : [];
+  return source.map(coerceRoom).filter((r): r is Room => r !== null);
+}
+
+/**
  * Validate and repair an arbitrary JSON value into a Home. Unrecognized or
  * malformed fields fall back to sane defaults rather than throwing, so a
  * hand-edited or partially corrupted import still loads.
