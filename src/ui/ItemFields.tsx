@@ -49,8 +49,8 @@ export function ItemFields({ room, items }: ItemFieldsProps) {
   const [first, ...rest] = items;
   const entry = catalogEntry(first.catalog);
   const resizable = entry?.resizable ?? true;
-  const minW = entry?.minW ?? 1;
-  const minD = entry?.minD ?? 1;
+  const minW = entry?.minW ?? 8;
+  const minD = entry?.minD ?? 8;
 
   if (items.length === 1) {
     return (
