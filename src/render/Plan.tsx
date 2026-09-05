@@ -15,7 +15,7 @@ import { ItemNode } from "./ItemNode";
 import { MeasureOverlay } from "./MeasureOverlay";
 import { Openings } from "./Openings";
 import { RoomShell } from "./RoomShell";
-import { Ruler } from "./Ruler";
+import { Ruler, RULER_SIZE } from "./Ruler";
 import { computeScale, computeViewScale, DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, type ViewState } from "./scale";
 
 const COMPASS_MARGIN = 40;
@@ -304,7 +304,7 @@ export function Plan({ room, units, issueItemIds, interactive = true }: PlanProp
         ))}
         <Dimensions room={room} scale={scale} units={units} />
         <Compass
-          x={COMPASS_MARGIN}
+          x={COMPASS_MARGIN + RULER_SIZE}
           y={viewport.height - COMPASS_MARGIN}
           rotation={compassRotation}
           interactive={interactive}
